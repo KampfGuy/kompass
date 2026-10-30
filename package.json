@@ -1,0 +1,20 @@
+{
+  "name": "kompass",
+  "productName": "Kompass",
+  "version": "1.0.0",
+  "description": "Kompass - a desktop web browser whose UI and logic are written in KampfScript",
+  "main": "src/main.js",
+  "author": "KampfGuy",
+  "license": "MIT",
+  "scripts": { "start": "electron .", "test": "node tests/lang.test.js && node tests/browser.test.js", "dist:win": "electron-builder --win portable nsis --x64" },
+  "build": {
+    "appId": "com.kampfguy.kompass",
+    "productName": "Kompass",
+    "files": ["src/**", "resources/**", "package.json"],
+    "extraResources": [{ "from": "resources", "to": "ks" }],
+    "win": { "signAndEditExecutable": false, "target": ["portable", "nsis"], "icon": "build/icon.ico" },
+    "portable": { "artifactName": "Kompass-${version}-portable.exe" },
+    "nsis": { "artifactName": "Kompass-Setup-${version}.exe", "oneClick": false, "allowToChangeInstallationDirectory": true }
+  },
+  "devDependencies": { "electron": "^33.2.0", "electron-builder": "^25.1.8" }
+}
