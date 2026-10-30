@@ -13,11 +13,12 @@ for i in range(10) { print(i, fib(i)) }
 # Scripts can draw UI in the stage below and open browser tabs:
 let r = row(body())
 button(r, "Open YouTube", fn() { open_tab("https://www.youtube.com") })
-button(r, "Search Kugel for cats", fn() { open_tab("kampf://search?q=cats") })
+button(r, "Search Kugel for cats", fn() { open_tab("kompass://search?q=cats") })
+button(r, "Learn KampfScript", fn() { open_tab("kompass://learn") })
 `;
   const root = h('div', 'ed-root'); root.hidden = true;
   const bar = h('div', 'ed-bar');
-  const title = h('span', 'ed-title', '⚡ KampfScript');
+  const title = h('span', 'ed-title', '⚡ KampfScript editor');
   const fileSel = h('select', 'ed-select');
   const mk = (t, f, cls) => { const b = h('button', 'ed-btn' + (cls ? ' ' + cls : ''), t); b.onclick = f; bar.appendChild(b); return b; };
   const nameBox = h('input', 'ed-name'); nameBox.placeholder = 'new name.ks'; nameBox.value = 'myscript.ks';
@@ -73,6 +74,8 @@ button(r, "Search Kugel for cats", fn() { open_tab("kampf://search?q=cats") })
   mk('↻ Save & restart browser', () => { if (current !== '@browser') { load('@browser'); log('Opened browser.ks — edit it, then press this again.', 'ed-info'); return; } if (save()) window.native.reloadApp(); });
   mk('⟲ Reset browser.ks', () => { if (confirm('Restore the original browser.ks?')) { window.native.saveBrowserSource(window.native.defaultSource()); window.native.reloadApp(); } });
   mk('📁 Data folder', () => window.native.openFolder());
+  mk('📘 Learn', () => window.KompassMain.openTabFromPage('kompass://learn'));
+  mk('{ } DevTools', () => window.KompassDevtools && window.KompassDevtools.toggle(true));
   mk('✕', () => api.toggle(false), 'ed-close');
   area.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); run(); }
@@ -82,6 +85,13 @@ button(r, "Search Kugel for cats", fn() { open_tab("kampf://search?q=cats") })
   const api = {
     toggle(on) { root.hidden = on === undefined ? !root.hidden : !on; document.body.classList.toggle('ed-open', !root.hidden); if (!root.hidden) { if (!area.value) load(null); area.focus(); } },
     open(f) { api.toggle(true); if (f) load(f); },
+    openAt(f, line) {
+      api.open(f);
+      const lines = area.value.split('\n'); const n = Math.max(1, Math.min(lines.length, line | 0));
+      const start = lines.slice(0, n - 1).join('\n').length + (n > 1 ? 1 : 0);
+      setTimeout(() => { area.focus(); area.setSelectionRange(start, start + lines[n - 1].length); area.scrollTop = Math.max(0, (n - 6) * 19.5); }, 30);
+      log('Jumped to line ' + n + ' of ' + (f === '@browser' ? 'browser.ks' : f), 'ed-info');
+    },
     log(s) { if (!root.hidden) log('[browser.ks] ' + s, 'ed-info'); },
   };
   refreshFiles();

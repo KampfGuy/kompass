@@ -15,9 +15,36 @@ app.userAgentFallback = app.userAgentFallback.replace(/\s?Electron\/[\d.]+/, '')
 
 // --- user-editable browser program: copied to userData on first run
 const userBrowserKs = path.join(DATA, 'browser.ks');
+// Upgrade rule: if the user's copy is an unmodified earlier shipped version, replace it with the new default.
+// If they edited it, keep their edits (and a backup) — they can use Settings → "Reset browser.ks" to update.
+const shippedKs = path.join(DATA, 'browser.ks.shipped');
 function browserSource() {
-  if (!fs.existsSync(userBrowserKs)) fs.copyFileSync(path.join(RES, 'browser.ks'), userBrowserKs);
-  return fs.readFileSync(userBrowserKs, 'utf8');
+  const dflt = fs.readFileSync(path.join(RES, 'browser.ks'), 'utf8');
+  if (!fs.existsSync(userBrowserKs)) { fs.writeFileSync(userBrowserKs, dflt); fs.writeFileSync(shippedKs, dflt); }
+  let cur = fs.readFileSync(userBrowserKs, 'utf8');
+  if (cur !== dflt) {
+    const prevShipped = fs.existsSync(shippedKs) ? fs.readFileSync(shippedKs, 'utf8') : null;
+    const unmodified = prevShipped !== null ? cur === prevShipped : /let VERSION = "1\.0\.0"/.test(cur);
+    if (unmodified) {
+      if (prevShipped === null) fs.writeFileSync(userBrowserKs + '.bak-1.0.0', cur);
+      fs.writeFileSync(userBrowserKs, dflt); cur = dflt;
+    }
+    fs.writeFileSync(shippedKs, dflt);
+  }
+  return cur;
+}
+
+// --- tutorial videos for kompass://learn: first match wins
+function videoDirs() {
+  const dirs = [path.join(RES, 'videos'), path.join(DATA, 'videos')];
+  if (process.env.PORTABLE_EXECUTABLE_DIR) dirs.push(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'videos'));
+  return dirs;
+}
+fs.mkdirSync(path.join(DATA, 'videos'), { recursive: true });
+function findVideo(name) {
+  const n = safeName(name); if (!/^[a-zA-Z0-9_-]+\.(mp4|webm)$/.test(n)) return null;
+  for (const d of videoDirs()) { const f = path.join(d, n); try { if (fs.statSync(f).size > 0) return require('url').pathToFileURL(f).href; } catch (e) {} }
+  return null;
 }
 
 // --- simple ad / tracker blocklist
@@ -101,6 +128,63 @@ ipcMain.handle('kompass:capture', async (_e, file) => {
 });
 ipcMain.on('kompass:argv', e => { e.returnValue = process.argv; });
 ipcMain.on('kompass:quit', () => app.quit());
+ipcMain.on('kompass:version', e => { e.returnValue = app.getVersion(); });
+ipcMain.handle('kompass:clear-data', async () => {
+  const ses = session.fromPartition('persist:kompass');
+  await ses.clearStorageData(); await ses.clearCache(); await ses.clearHostResolverCache();
+  for (const f of ['history.json']) { try { fs.unlinkSync(path.join(DATA, f)); } catch (e) {} }
+  return true;
+});
+ipcMain.on('kompass:video-file', (e, n) => { e.returnValue = findVideo(n); });
+ipcMain.on('kompass:videos-folder', e => { e.returnValue = videoDirs().join('  or  '); });
+ipcMain.on('kompass:open-videos-folder', () => { shell.openPath(path.join(DATA, 'videos')); });
+
+// ---------------- v1.1 screenshot self-test: KOMPASS_SHOTS=/out/dir
+if (process.env.KOMPASS_SHOTS) {
+  const out = process.env.KOMPASS_SHOTS;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[shots] wrote', name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  app.whenReady().then(async () => {
+    try {
+      await wait(3500);
+      console.log('[shots] gear:', await js("!!document.querySelector('.gear')"), 'theme:', await js('document.body.dataset.theme'));
+      await shot('kompass11-main.png');
+      await js("document.querySelector('.gear').click()"); await wait(1200);
+      console.log('[shots] settings cards:', await js("document.querySelectorAll('.set-card').length"));
+      await shot('kompass11-settings.png');
+      await go('kompass://learn'); await wait(1200);
+      await js("document.querySelector('.try-btn') && document.querySelector('.try-btn').click()"); await wait(800);
+      console.log('[shots] learn out:', JSON.stringify(await js("(document.querySelector('.try-out')||{}).innerText")));
+      await shot('kompass11-learn.png');
+      console.log('[shots] videos:', await js("JSON.stringify([...document.querySelectorAll('video')].map(v => ({src: v.src.slice(-30), ready: v.readyState, w: v.videoWidth, err: v.error && v.error.code})))"));
+      await js("document.querySelector('.ks-page:not([hidden])').scrollTop = 560"); await wait(300);
+      await shot('kompass11-learn-lesson.png');
+      await go('kompass://home'); await wait(1000);
+      await js("window.KompassDevtools.toggle(true)"); await js("window.KompassDevtools.consoleRun('tab_url(current)')"); await wait(300);
+      await js("window.KompassDevtools.show('inspector'); window.KompassDevtools.expandPath(['settings']); window.KompassDevtools.expandPath(['tabs']); window.KompassDevtools.expandPath(['tabs', '1'])"); await wait(600);
+      await shot('kompass11-devtools.png');
+      for (const p of ['console', 'events', 'source', 'perf', 'errors']) { await js(`window.KompassDevtools.show('${p}')`); await wait(300); await shot('kompass11-dt-' + p + '.png'); }
+      // breakpoint inside refresh_toolbar(), then trigger it via the address bar
+      const line = 1 + fs.readFileSync(path.join(RES, 'browser.ks'), 'utf8').split('\n').findIndex(l => l.includes('let u = tab_url(current)'));
+      await js(`window.KompassDevtools.setBreakpoint(${line})`);
+      go('kompass://about'); await wait(1200);
+      console.log('[shots] paused:', JSON.stringify(await js('window.KompassDevtools.paused && window.KompassDevtools.paused.line')), 'expected', line);
+      await shot('kompass11-dt-debugger.png');
+      await js(`window.KompassDevtools.setBreakpoint(${line}, false); window.KompassDevtools.resume()`); await wait(800);
+      await js("window.KompassDevtools.toggle(false)");
+      await js("window.KompassMain.repl('settings.theme = \"neon\"\\napply_look()')"); await go('kompass://home'); await wait(1500);
+      await shot('kompass11-theme-neon.png');
+      await js("window.KompassMain.repl('settings.theme = \"midnight\"\\napply_look()')"); await wait(400);
+      await go('kompass://settings'); await wait(1000); await shot('kompass11-theme-midnight.png');
+      await js("window.KompassMain.repl('settings.theme = \"paper\"\\napply_look()')"); await go('kompass://learn'); await wait(1000);
+      await shot('kompass11-theme-paper.png');
+      await js("window.KompassMain.repl('settings.theme = \"brass\"\\napply_look()')");
+    } catch (e) { console.log('[shots] error', e); }
+    app.quit();
+  });
+}
 
 // ---------------- optional self-test (used for CI/screenshots): KOMPASS_SELFTEST=/out/dir
 if (process.env.KOMPASS_SELFTEST) {

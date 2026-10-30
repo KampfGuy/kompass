@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('native', {
   capture: (f) => ipcRenderer.invoke('kompass:capture', f),
   argv: () => ipcRenderer.sendSync('kompass:argv'),
   quit: () => ipcRenderer.send('kompass:quit'),
+  version: () => ipcRenderer.sendSync('kompass:version'),
+  clearBrowsingData: () => ipcRenderer.invoke('kompass:clear-data'),
+  videoFile: (n) => ipcRenderer.sendSync('kompass:video-file', n),
+  videosFolder: () => ipcRenderer.sendSync('kompass:videos-folder'),
+  openVideosFolder: () => ipcRenderer.send('kompass:open-videos-folder'),
   onOpenTab: (f) => ipcRenderer.on('kompass:open-tab', (_e, u) => f(u)),
   onKey: (f) => ipcRenderer.on('kompass:key', (_e, k) => f(k)),
 });

@@ -340,6 +340,13 @@
       this.yieldEvery = opts.yieldEvery || 1500;
       this.steps = 0; this.totalSteps = 0; this.coinsSpent = 0;
       this.depth = 0; this.stopped = false;
+      // Debug hooks (used by Kompass KampfScript DevTools). All optional, zero cost when null:
+      //   hooks.statement(stmt, env) -> may return a Promise to pause (breakpoints / stepping)
+      //   hooks.builtin(name, args, line)   every builtin call
+      //   hooks.invoke(label, steps, ms, error) after every external callback invocation
+      this.hooks = opts.hooks || null;
+      this.callStack = [];   // [{name, line}] of KampfScript functions currently running
+      this.noDebug = 0;      // >0 while running REPL code: statement hooks are skipped
       this.globals = new Env(null);
       const all = Object.assign({}, coreBuiltins(), opts.builtins || {});
       for (const k of Object.keys(all)) {
@@ -371,21 +378,44 @@
       return { steps: this.totalSteps, coins: this.coinsSpent };
     }
     // Invoke a KampfScript function from outside (UI callbacks). Each callback gets a fresh step budget.
-    async invoke(fn, args) {
+    async invoke(fn, args, label) {
       if (this.stopped) return null;
       this.steps = 0;
+      const h = this.hooks, t0 = h && h.invoke ? Date.now() : 0, s0 = this.totalSteps;
+      let err = null;
       try { return await this.callValue(fn, args || [], 0); }
       catch (e) {
-        if (e instanceof ReturnSig) return e.v;
+        err = e;
+        if (e instanceof ReturnSig) { err = null; return e.v; }
         if (this.opts.onError) this.opts.onError(e instanceof KError ? e : new KError(String(e && e.message || e)));
         else throw e;
+      } finally {
+        if (h && h.invoke) h.invoke(label || (fn && fn.name) || 'callback', this.totalSteps - s0, Date.now() - t0, err);
       }
+    }
+    // Run source in the live global environment (REPL). Returns the value of the last expression statement.
+    async repl(src) {
+      const ast = parse(src);
+      this.steps = 0; this.noDebug++;
+      let last = null;
+      try {
+        for (const s of ast.body) {
+          if (s.type === 'ExprStmt') { await this.step(s.line); last = await this.eval(s.expr, this.globals); }
+          else { await this.exec(s, this.globals); last = null; }
+        }
+      } catch (e) {
+        if (e instanceof ReturnSig) return e.v;
+        if (e === BREAK || e === CONTINUE) throw new KError("'break'/'continue' used outside of a loop");
+        throw e;
+      } finally { this.noDebug--; }
+      return last;
     }
     async execBlock(stmts, env) {
       for (const s of stmts) await this.exec(s, env);
     }
     async exec(s, env) {
       await this.step(s.line);
+      if (this.hooks && this.hooks.statement && !this.noDebug) { const p = this.hooks.statement(s, env, this); if (p) await p; }
       switch (s.type) {
         case 'Let': env.define(s.name, await this.eval(s.value, env)); return;
         case 'FnDecl': env.define(s.name, new KFunc(s.name, s.params, s.body, env)); return;
@@ -509,6 +539,7 @@
           const want = f.min === f.max ? f.min : f.max === Infinity ? 'at least ' + f.min : f.min + '-' + f.max;
           throw new KError(f.name + '() expects ' + want + ' argument' + (want === 1 ? '' : 's') + ', got ' + args.length, line);
         }
+        if (this.hooks && this.hooks.builtin) this.hooks.builtin(f.name, args, line);
         try {
           return await f.fn(args, { line, interp: this, call: (fn, a) => this.callValue(fn, a, line) });
         } catch (e) {
@@ -522,12 +553,13 @@
         const e = new Env(f.closure);
         f.params.forEach((p, i) => e.define(p, i < args.length ? args[i] : null));
         this.depth++;
+        const frame = { name: f.name || 'anonymous fn', line, env: e }; this.callStack.push(frame);
         try { await this.execBlock(f.body, e); }
         catch (x) {
           if (x instanceof ReturnSig) return x.v;
           if (x === BREAK || x === CONTINUE) throw new KError("'break'/'continue' used outside of a loop", line);
           throw x;
-        } finally { this.depth--; }
+        } finally { this.depth--; const i = this.callStack.lastIndexOf(frame); if (i >= 0) this.callStack.splice(i, 1); }
         return null;
       }
       throw new KError((nameHint ? "'" + nameHint + "'" : 'That') + ' is a ' + typeOf(f) + ', not a function', line);
@@ -622,7 +654,7 @@
     };
   }
 
-  const api = { tokenize, parse, Interpreter, KError, KMap, KFunc, KBuiltin, KHandle, show, typeOf, truthy, OUT_OF_COINS, KEYWORDS };
+  const api = { tokenize, parse, Interpreter, Env, KError, KMap, KFunc, KBuiltin, KHandle, show, typeOf, truthy, OUT_OF_COINS, KEYWORDS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KampfScript = api;
 })(typeof window !== 'undefined' ? window : this);

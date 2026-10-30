@@ -21,11 +21,14 @@
     return v;
   }
   const S = (v) => K.show(v);
+  const addCls = (e, s) => { for (const c of s.split(/\s+/).filter(Boolean)) e.classList.add(styleOk(c)); };
   const styleOk = (s) => { if (!/^[a-zA-Z0-9_-]+$/.test(s)) throw new KError('bad style name: ' + s); return s; };
 
   function makeRuntime(opts) {
     let interp;
-    const cb = (f) => (...args) => interp.invoke(f, args.map(toK));
+    const cb = (f, label) => (...args) => interp.invoke(f, args.map(toK), label);
+    const HEX = /^#[0-9a-fA-F]{3,8}$/;
+    const THEMES = ['brass', 'midnight', 'neon', 'paper'];
     const isFn = (f) => f && (f instanceof K.KFunc || f instanceof K.KBuiltin);
     const el = (x, who) => { if (!(x instanceof KHandle) || !x.el) throw new KError(who + ' needs a UI element, got ' + K.typeOf(x)); return x.el; };
     const make = (kind, tag, cls, parent, who) => {
@@ -34,45 +37,64 @@
     };
     const ui = {
       body: B(() => opts.rootHandle, 0, 0),
-      box: B(([p, s]) => { const h = make('box', 'div', 'ks-box', p, 'box()'); if (s) h.el.classList.add(styleOk(S(s))); return h; }, 1, 2),
-      row: B(([p, s]) => { const h = make('row', 'div', 'ks-row', p, 'row()'); if (s) h.el.classList.add(styleOk(S(s))); return h; }, 1, 2),
-      col: B(([p, s]) => { const h = make('col', 'div', 'ks-col', p, 'col()'); if (s) h.el.classList.add(styleOk(S(s))); return h; }, 1, 2),
-      label: B(([p, t, s]) => { const h = make('label', 'span', 'ks-label', p, 'label()'); h.el.textContent = S(t); if (s) h.el.classList.add(styleOk(S(s))); return h; }, 2, 3),
-      heading: B(([p, t, s]) => { const h = make('heading', 'h1', 'ks-heading', p, 'heading()'); h.el.textContent = S(t); if (s) h.el.classList.add(styleOk(S(s))); return h; }, 2, 3),
-      button: B(([p, t, f, s]) => { const h = make('button', 'button', 'ks-button', p, 'button()'); h.el.textContent = S(t); if (s) h.el.classList.add(styleOk(S(s))); if (isFn(f)) h.el.addEventListener('click', (e) => { e.stopPropagation(); cb(f)(); }); return h; }, 2, 4),
-      link: B(([p, t, f, s]) => { const h = make('link', 'a', 'ks-link', p, 'link()'); h.el.textContent = S(t); h.el.href = '#'; if (s) h.el.classList.add(styleOk(S(s))); if (isFn(f)) h.el.addEventListener('click', (e) => { e.preventDefault(); cb(f)(); }); return h; }, 2, 4),
+      box: B(([p, s]) => { const h = make('box', 'div', 'ks-box', p, 'box()'); if (s) addCls(h.el, S(s)); return h; }, 1, 2),
+      row: B(([p, s]) => { const h = make('row', 'div', 'ks-row', p, 'row()'); if (s) addCls(h.el, S(s)); return h; }, 1, 2),
+      col: B(([p, s]) => { const h = make('col', 'div', 'ks-col', p, 'col()'); if (s) addCls(h.el, S(s)); return h; }, 1, 2),
+      label: B(([p, t, s]) => { const h = make('label', 'span', 'ks-label', p, 'label()'); h.el.textContent = S(t); if (s) addCls(h.el, S(s)); return h; }, 2, 3),
+      heading: B(([p, t, s]) => { const h = make('heading', 'h1', 'ks-heading', p, 'heading()'); h.el.textContent = S(t); if (s) addCls(h.el, S(s)); return h; }, 2, 3),
+      button: B(([p, t, f, s]) => { const h = make('button', 'button', 'ks-button', p, 'button()'); h.el.textContent = S(t); if (s) addCls(h.el, S(s)); if (isFn(f)) h.el.addEventListener('click', (e) => { e.stopPropagation(); cb(f, 'click: ' + S(t).slice(0, 24))(); }); return h; }, 2, 4),
+      link: B(([p, t, f, s]) => { const h = make('link', 'a', 'ks-link', p, 'link()'); h.el.textContent = S(t); h.el.href = '#'; if (s) addCls(h.el, S(s)); if (isFn(f)) h.el.addEventListener('click', (e) => { e.preventDefault(); cb(f)(); }); return h; }, 2, 4),
       textbox: B(([p, ph, onEnter, s]) => {
         const h = make('textbox', 'input', 'ks-textbox', p, 'textbox()'); h.el.placeholder = ph ? S(ph) : ''; h.el.spellcheck = false;
-        if (s) h.el.classList.add(styleOk(S(s)));
-        if (isFn(onEnter)) h.el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); cb(onEnter)(h.el.value); } });
+        if (s) addCls(h.el, S(s));
+        if (isFn(onEnter)) h.el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); cb(onEnter, 'enter: ' + (h.el.placeholder || 'textbox').slice(0, 24))(h.el.value); } });
         h.el.addEventListener('focus', () => setTimeout(() => h.el.select(), 0));
         return h;
       }, 1, 4),
-      image: B(([p, url, s]) => { const h = make('image', 'img', 'ks-image', p, 'image()'); const u = S(url); if (/^(https?:|data:image\/)/.test(u)) h.el.src = u; if (s) h.el.classList.add(styleOk(S(s))); h.el.onerror = () => { h.el.style.visibility = 'hidden'; }; return h; }, 2, 3),
+      image: B(([p, url, s]) => { const h = make('image', 'img', 'ks-image', p, 'image()'); const u = S(url); if (/^(https?:|data:image\/)/.test(u)) h.el.src = u; if (s) addCls(h.el, S(s)); h.el.onerror = () => { h.el.style.visibility = 'hidden'; }; return h; }, 2, 3),
+      codebox: B(([p, t, s]) => {
+        const h = make('textbox', 'textarea', 'ks-codebox', p, 'codebox()'); h.el.value = t ? S(t) : ''; h.el.spellcheck = false;
+        if (s) addCls(h.el, S(s));
+        const fit = () => { h.el.style.height = 'auto'; h.el.style.height = Math.min(420, h.el.scrollHeight + 4) + 'px'; };
+        h.el.addEventListener('input', fit); setTimeout(fit, 0);
+        h.el.addEventListener('keydown', (e) => { if (e.key === 'Tab') { e.preventDefault(); const i = h.el.selectionStart; h.el.setRangeText('  ', i, h.el.selectionEnd, 'end'); } e.stopPropagation(); });
+        return h;
+      }, 1, 3),
+      video: B(([p, url, s]) => {
+        const h = make('video', 'video', 'ks-video', p, 'video()'); const u = S(url);
+        if (!/^(https:|file:)/.test(u)) throw new KError('video(): only https: or local file: URLs');
+        h.el.src = u; h.el.controls = true; h.el.preload = 'metadata'; if (s) addCls(h.el, S(s));
+        return h;
+      }, 2, 3),
+      setcolor: B(([x, c, which]) => { const e = el(x, 'setcolor()'); const v = S(c); if (!HEX.test(v)) throw new KError('setcolor(): use a hex color like #c9a227'); if (which === 'text') e.style.color = v; else e.style.background = v; return null; }, 2, 3),
+      set_theme: B(([n]) => { const v = S(n).toLowerCase(); if (!THEMES.includes(v)) throw new KError('set_theme(): one of ' + THEMES.join(', ')); document.body.dataset.theme = v; return null; }, 1, 1),
+      themes: B(() => THEMES.slice(), 0, 0),
+      set_accent: B(([c]) => { const v = c ? S(c) : ''; if (v === '') { document.body.style.removeProperty('--acc'); return null; } if (!HEX.test(v)) throw new KError('set_accent(): use a hex color like #c9a227'); document.body.style.setProperty('--acc', v); return null; }, 1, 1),
+      confirm: B(([t]) => window.confirm(S(t)), 1, 1),
       settext: B(([x, t]) => { const e = el(x, 'settext()'); if (x.kind === 'textbox') e.value = S(t); else e.textContent = S(t); return null; }, 2, 2),
       gettext: B(([x]) => { const e = el(x, 'gettext()'); return x.kind === 'textbox' ? e.value : e.textContent; }, 1, 1),
       settip: B(([x, t]) => { el(x, 'settip()').title = S(t); return null; }, 2, 2),
       setimage: B(([x, url]) => { const e = el(x, 'setimage()'); const u = url ? S(url) : ''; e.style.visibility = ''; if (/^(https?:|data:image\/)/.test(u)) e.src = u; else e.removeAttribute('src'); return null; }, 2, 2),
       clear: B(([x]) => { el(x, 'clear()').replaceChildren(); return null; }, 1, 1),
       destroy: B(([x]) => { el(x, 'destroy()').remove(); return null; }, 1, 1),
-      addstyle: B(([x, s]) => { el(x, 'addstyle()').classList.add(styleOk(S(s))); return null; }, 2, 2),
+      addstyle: B(([x, s]) => { addCls(el(x, 'addstyle()'), S(s)); return null; }, 2, 2),
       removestyle: B(([x, s]) => { el(x, 'removestyle()').classList.remove(styleOk(S(s))); return null; }, 2, 2),
       togglestyle: B(([x, s, on]) => { el(x, 'togglestyle()').classList.toggle(styleOk(S(s)), on === undefined ? undefined : K.truthy(on)); return null; }, 2, 3),
       show: B(([x, on]) => { el(x, 'show()').hidden = on === undefined ? false : !K.truthy(on); return null; }, 1, 2),
       enable: B(([x, on]) => { el(x, 'enable()').disabled = !K.truthy(on); return null; }, 2, 2),
       focus: B(([x]) => { const e = el(x, 'focus()'); setTimeout(() => { e.focus(); if (e.select) e.select(); }, 20); return null; }, 1, 1),
-      on_click: B(([x, f]) => { el(x, 'on_click()').addEventListener('click', (e) => { e.stopPropagation(); cb(f)(); }); return null; }, 2, 2),
-      on_middle_click: B(([x, f]) => { el(x, 'on_middle_click()').addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); cb(f)(); } }); return null; }, 2, 2),
+      on_click: B(([x, f]) => { const e0 = el(x, 'on_click()'); e0.addEventListener('click', (e) => { e.stopPropagation(); cb(f, 'click: ' + x.kind + ' ' + (e0.textContent || '').trim().slice(0, 18))(); }); return null; }, 2, 2),
+      on_middle_click: B(([x, f]) => { el(x, 'on_middle_click()').addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); cb(f, 'middle-click')(); } }); return null; }, 2, 2),
       on_key: B(([combo, f]) => { keyHandlers.set(S(combo).toLowerCase(), f); return null; }, 2, 2),
       set_window_title: B(([t]) => { document.title = S(t); return null; }, 1, 1),
-      after: B(([ms, f]) => { setTimeout(() => cb(f)(), Math.max(0, +ms || 0)); return null; }, 2, 2),
-      every: B(([ms, f]) => { setInterval(() => cb(f)(), Math.max(100, +ms || 1000)); return null; }, 2, 2),
+      after: B(([ms, f]) => { setTimeout(() => cb(f, 'after(' + (+ms || 0) + ')')(), Math.max(0, +ms || 0)); return null; }, 2, 2),
+      every: B(([ms, f]) => { setInterval(() => cb(f, 'every(' + (+ms || 0) + ')')(), Math.max(100, +ms || 1000)); return null; }, 2, 2),
       print: B((a) => { opts.onPrint(a.map(S).join(' ')); return null; }, 0),
     };
 
     // ---------- tabs (real Chromium pages via sandboxed <webview>, or KampfScript-drawn internal pages)
     const tabs = new Map(); let nextId = 1; let viewArea = null; let tabHandler = null;
-    const fire = (ev, id, val) => { if (tabHandler) cb(tabHandler)(ev, id, val === undefined ? null : val); };
+    const fire = (ev, id, val) => { if (window.KompassDevtools) window.KompassDevtools.event(ev, id, val); if (tabHandler) cb(tabHandler, 'on_tab_event: ' + ev)(ev, id, val === undefined ? null : val); };
     const tab = (id, who) => { const t = tabs.get(id); if (!t) throw new KError(who + ': no tab with id ' + S(id)); return t; };
     function showWeb(t) { t.mode = 'web'; t.page.hidden = true; t.wv.hidden = false; }
     function showInternal(t, url) { t.mode = 'internal'; t.internalUrl = url; t.wv.hidden = true; t.page.hidden = false; t.page.replaceChildren(); t.page.scrollTop = 0; fire('url', t.id, url); fire('internal', t.id, url); fire('state', t.id); }
@@ -107,8 +129,8 @@
       }, 0, 1),
       tab_navigate: B(([id, url]) => {
         const t = tab(id, 'tab_navigate()'); const u = S(url);
-        if (/^kampf:/.test(u)) { showInternal(t, u); return null; }
-        if (!/^(https?:|about:blank)/.test(u)) throw new KError('tab_navigate(): only http(s) or kampf: URLs');
+        if (/^(kampf|kompass):/.test(u)) { showInternal(t, u); return null; }
+        if (!/^(https?:|about:blank)/.test(u)) throw new KError('tab_navigate(): only http(s), kompass: or kampf: URLs');
         if (t.mode === 'internal' && t.internalUrl) t.lastInternal = t.internalUrl;
         showWeb(t); t.everWeb = true; t.url = u; fire('url', t.id, u);
         if (t.ready) t.wv.loadURL(u); else t.pending = u;
@@ -156,16 +178,36 @@
       reload_app: B(() => { window.native.reloadApp(); return null; }, 0, 0),
       app_devtools: B(() => { window.native.devtools(); return null; }, 0, 0),
       quit: B(() => { window.native.quit(); return null; }, 0, 0),
+      app_version: B(() => window.native.version(), 0, 0),
+      clear_browsing_data: B(async () => { await window.native.clearBrowsingData(); return true; }, 0, 0),
+      reset_browser: B(() => { window.native.saveBrowserSource(window.native.defaultSource()); window.native.reloadApp(); return null; }, 0, 0),
+      ks_devtools: B(([on]) => { if (window.KompassDevtools) window.KompassDevtools.toggle(on === undefined ? undefined : K.truthy(on)); return null; }, 0, 1),
+      video_file: B(([n]) => window.native.videoFile(S(n)) || '', 1, 1),
+      videos_folder: B(() => window.native.videosFolder(), 0, 0),
+      open_videos_folder: B(() => { window.native.openVideosFolder(); return null; }, 0, 0),
+      // Run untrusted lesson code in a fresh, isolated interpreter: core built-ins only (no UI, tabs or files).
+      run_sandbox: B(async ([code, stage]) => {
+        const out = [];
+        const extra = { sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
+          open_tab: B(([u]) => { out.push('[sandbox] would open tab: ' + S(u)); return null; }, 1, 1) };
+        let sb;
+        if (stage instanceof KHandle) { el(stage, 'run_sandbox()').replaceChildren(); sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); }, onError: (e) => out.push('✖ ' + e.message), extra }); }
+        else sb = new K.Interpreter({ maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); }, builtins: extra });
+        try { const r = await sb.run(S(code)); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
+        catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
+      }, 1, 2),
     };
 
+    const sandboxUi = () => { const o = Object.assign({}, ui); for (const k of ['on_key', 'set_window_title', 'set_theme', 'set_accent', 'confirm', 'every']) delete o[k]; return o; };
     const keyHandlers = new Map();
     interp = new K.Interpreter({
-      maxSteps: opts.maxSteps || 2000000, yieldEvery: 3000,
+      maxSteps: opts.maxSteps || 2000000, yieldEvery: 3000, hooks: opts.hooks || null,
       onPrint: opts.onPrint, onError: opts.onError,
-      builtins: Object.assign({}, ui, opts.withBrowser ? browser : {}, services, opts.extra || {}),
+      builtins: opts.sandbox ? Object.assign(sandboxUi(), opts.extra || {}) : Object.assign({}, ui, opts.withBrowser ? browser : {}, services, opts.extra || {}),
     });
     interp.keyHandlers = keyHandlers;
-    interp.openTabFromPage = (u) => { if (tabHandler) cb(tabHandler)('popup', 0, u); };
+    interp.openTabFromPage = (u) => { if (tabHandler) cb(tabHandler, 'on_tab_event: popup')('popup', 0, u); };
+    interp.nativeNames = new Set(Object.keys(Object.assign({}, ui, browser, services, opts.extra || {})));
     return interp;
   }
 
@@ -174,20 +216,27 @@
   // ---------- boot browser.ks
   const app = document.getElementById('app');
   const errBox = document.getElementById('boot-error');
-  function showError(msg) { errBox.hidden = false; errBox.textContent = '⚠ KampfScript error in browser.ks: ' + msg + '   (Ctrl+Shift+K to open the editor)'; console.error(msg); }
+  errBox.onclick = () => { errBox.hidden = true; if (window.KompassDevtools) { window.KompassDevtools.toggle(true); window.KompassDevtools.show('errors'); } };
+  function showError(msg) { errBox.hidden = false; errBox.textContent = '⚠ KampfScript error in browser.ks: ' + msg + '   (click: DevTools errors · Ctrl+Shift+K: editor)'; console.error(msg); }
+  // DevTools hooks: forwarded to window.KompassDevtools (devtools.js) when it is loaded.
+  const hooks = {
+    builtin: (name, args, line) => { const d = window.KompassDevtools; if (d) d.builtin(name, args, line); },
+    invoke: (label, steps, ms, err) => { const d = window.KompassDevtools; if (d) d.invoked(label, steps, ms, err); },
+    statement: null,  // set by DevTools only while breakpoints/stepping are active
+  };
   const main = makeRuntime({
-    withBrowser: true, rootHandle: new KHandle('box', app),
-    onPrint: (s) => { console.log('[ks]', s); if (window.KompassEditor) window.KompassEditor.log(s); },
-    onError: (e) => showError(e.message),
+    withBrowser: true, rootHandle: new KHandle('box', app), hooks,
+    onPrint: (s) => { console.log('[ks]', s); if (window.KompassEditor) window.KompassEditor.log(s); if (window.KompassDevtools) window.KompassDevtools.print(s); },
+    onError: (e) => { showError(e.message); if (window.KompassDevtools) window.KompassDevtools.error(e); },
   });
   window.KompassMain = main;
   window.KompassRuntime = { makeRuntime, toK, toJS };
   function handleKey(k, ev) {
     if (k === 'ctrl+shift+k') { if (ev) ev.preventDefault(); window.KompassEditor.toggle(); return; }
-    const f = main.keyHandlers.get(k); if (f) { if (ev) ev.preventDefault(); main.invoke(f, []); }
+    const f = main.keyHandlers.get(k); if (f) { if (ev) ev.preventDefault(); main.invoke(f, [], 'key: ' + k); }
   }
   window.addEventListener('keydown', (e) => handleKey(keyName(e), e));
   window.native.onKey((k) => handleKey(k));
   window.native.onOpenTab((u) => main.openTabFromPage(u));
-  main.run(window.native.browserSource()).catch((e) => showError(e.message));
+  main.run(window.native.browserSource()).catch((e) => { showError(e.message); if (window.KompassDevtools) window.KompassDevtools.error(e); });
 })();

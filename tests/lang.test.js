@@ -126,6 +126,44 @@ print(join(split("a,b,c", ","), "-"), contains("hello", "ell"), replace("aXbX", 
     assert.deepStrictEqual(out, ['got click']);
     assert.match(errs[0], /Line 2: Unknown name 'nope'/);
   });
+  await t('debug hooks: builtin log, call stack, statement count', async () => {
+    const calls = [], stacks = []; let stmts = 0;
+    const hooks = { builtin: (n, a) => { calls.push(n); if (n === 'print') stacks.push(it2.callStack.map(f => f.name).join('>')); }, statement: () => { stmts++; } };
+    const it2 = new K.Interpreter({ hooks, onPrint: () => {} });
+    await it2.run('fn inner() { print("x") }\nfn outer() { inner() }\nouter()\nlet n = len([1,2])');
+    assert.deepStrictEqual(calls, ['print', 'len']);
+    assert.deepStrictEqual(stacks, ['outer>inner']);
+    assert.strictEqual(it2.callStack.length, 0);
+    assert(stmts >= 5);
+  });
+  await t('breakpoint pauses and resumes', async () => {
+    const out = []; let resume; const hit = [];
+    const hooks = { statement: (s) => { if (s.line === 2) { hit.push(s.line); return new Promise(r => { resume = r; }); } } };
+    const it2 = new K.Interpreter({ hooks, onPrint: s => out.push(s) });
+    const p = it2.run('print("a")\nprint("b")\nprint("c")');
+    await new Promise(r => setTimeout(r, 20));
+    assert.deepStrictEqual(out, ['a']); assert.deepStrictEqual(hit, [2]);
+    resume(); await p;
+    assert.deepStrictEqual(out, ['a', 'b', 'c']);
+  });
+  await t('repl runs in live globals and returns last value', async () => {
+    let n = 0;
+    const it2 = new K.Interpreter({ hooks: { statement: () => { n++; } }, onPrint: () => {} });
+    await it2.run('let count = 5\nfn dbl(x) { return x * 2 }');
+    const before = n;
+    assert.strictEqual(await it2.repl('count += 1\ndbl(count)'), 12);
+    assert.strictEqual(it2.globals.get('count'), 6);
+    assert.strictEqual(n, before, 'statement hooks skipped in repl');
+    await assert.rejects(it2.repl('nope'), /Unknown name/);
+  });
+  await t('invoke hook reports label, steps and errors', async () => {
+    const rep = [];
+    const it2 = new K.Interpreter({ hooks: { invoke: (l, st, ms, e) => rep.push([l, st > 0, !!e]) }, onError: () => {} });
+    await it2.run('fn ok() { let a = 1 }\nfn bad() { return nope }');
+    await it2.invoke(it2.globals.get('ok'), [], 'tab:title');
+    await it2.invoke(it2.globals.get('bad'), []);
+    assert.deepStrictEqual(rep, [['tab:title', true, false], ['bad', true, true]]);
+  });
   const fs = require('fs'), path = require('path');
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.ks') ? [path.join(d, e.name)] : []);
   for (const f of walk(path.join(__dirname, '..', 'resources'))) await t('parses ' + path.relative(path.join(__dirname, '..'), f), async () => { K.parse(fs.readFileSync(f, 'utf8')); });

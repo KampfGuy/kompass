@@ -3,20 +3,61 @@
 Kompass is a real desktop web browser for Windows whose **entire interface and logic are a program written in KampfScript** (`.ks`), the tiny custom language from [KampfOS](https://github.com/KampfGuy/kampfos).
 Electron/Chromium only renders web pages and provides native built-ins; tabs, the address bar, bookmarks, history, the **Kugel** start page and search, settings and keyboard shortcuts all live in [`resources/browser.ks`](resources/browser.ks) — which you can edit from inside the app.
 
-![Kugel start page](docs/kompass-home.png)
-![YouTube in Kompass](docs/kompass-youtube.png)
+![Kompass 1.1 start page (Brass theme)](docs/kompass11-main.png)
+![Settings](docs/kompass11-settings.png)
+![KampfScript DevTools](docs/kompass11-devtools.png)
+![Learn KampfScript](docs/kompass11-learn.png)
 
 ## Download & run (Windows 10/11 x64)
 Get it from **[Releases](https://github.com/KampfGuy/kompass/releases/latest)**:
-- `Kompass-1.0.0-portable.exe` — single file, no install. Double-click it.
-- `Kompass-1.0.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
+- `Kompass-1.1.0-portable.exe` — single file, no install. Double-click it.
+- `Kompass-1.1.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
 
 The exe is **not code-signed**, so Windows SmartScreen will say "Windows protected your PC". Click **More info → Run anyway**.
+
+## What's new in 1.1
+- **⚙ Settings button** in the toolbar → `kompass://settings` (drawn by KampfScript): search engine, home page, themes + accent colour, ad/tracker blocklist, bookmarks bar, clear history / all browsing data, reset browser.ks, DevTools toggle, tutorial video URLs, about.
+- **A look of its own**: compass logo & needle motif, slanted "chart-card" tabs with an accent glow, gradient accents, bundled fonts (Space Grotesk + Space Mono, SIL OFL, in `src/fonts/`), new start page, and four themes — **Brass** (default), **Midnight**, **Neon**, **Paper**.
+- **{ } KampfScript DevTools** (`F12` / `Ctrl+Shift+I`, or the `{ }` button) — see below.
+- **📘 Learn KampfScript** (`kompass://learn`, `F1`): 8 lessons with runnable, editable examples, auto-checked exercises, saved progress and two tutorial-video slots.
+- Internal pages now use `kompass://` (old `kampf://` links still work). If you never edited your browser.ks it is upgraded automatically; if you did, your copy is kept — use Settings → *Reset browser.ks* to get the 1.1 interface.
+
+## KampfScript DevTools
+Separate from Chromium's devtools for web pages (those are `Ctrl+Shift+J` or Settings → *Page devtools*).
+| panel | what it shows |
+|---|---|
+| **Inspector** | live tree of all browser.ks globals — expand maps, lists, functions and UI elements; filter; auto-refresh |
+| **Console** | a REPL that runs in the *live* browser.ks environment (`tab_url(current)`, `settings.theme = "neon"; apply_look()`), ↑ history; also shows `print()` output |
+| **Events** | every native call (`tab_navigate`, `settext`, `on_tab_event` …) with arguments and line, every engine event (`title`, `url`, `loading` …) and every callback with its step count; filter / freeze |
+| **Debugger** | breakpoints (click a line number in Source, or type one), ⏸ Pause at next statement, ▶ Resume (`F8`), ⤵ Step (`F10`), call stack, local scopes, step counters |
+| **Source / AST** | browser.ks, your scripts or pasted code as numbered source, a token view and a collapsible AST |
+| **Performance** | steps / calls / avg / max / ms per event handler |
+| **Errors** | every KampfScript error with its line — click to jump to that line in the editor |
+
+Interpreter hooks added for this (in `src/lang.js`, all optional): `hooks.statement(stmt, env)` (may return a promise to pause), `hooks.builtin(name, args, line)`, `hooks.invoke(label, steps, ms, error)`, `interp.callStack`, `interp.repl(src)`.
+
+## Learn KampfScript & tutorial videos
+`kompass://learn` (linked from the start page, Settings, the toolbar 📘 button and the ⚡ editor) has lessons: Hello · Variables · If/else · Loops · Functions · Lists & maps · Drawing UI · Scripting the browser. **▶ Try it** runs the code box in a sandboxed interpreter (core built-ins only; the UI lesson gets a small stage; `open_tab` only prints). Exercises check your printed output; progress is saved in `learn_progress.json`.
+
+### Where to put the two videos
+| slot | file name | suggested topic |
+|---|---|---|
+| Video 1 | `lesson1.mp4` | *Intro to KampfScript: variables, print, if, loops* |
+| Video 2 | `lesson2.mp4` | *Functions, lists/maps, and scripting the Kompass browser* |
+
+**Format:** MP4 container, **H.264 (AVC) video + AAC audio**, suggested **1920×1080** (1280×720 fine), 30 fps, `yuv420p`, `+faststart`. e.g. `ffmpeg -i in.mov -c:v libx264 -pix_fmt yuv420p -crf 20 -c:a aac -b:a 160k -movflags +faststart lesson1.mp4`
+
+Kompass uses the first file it finds in:
+1. `resources/videos/` in this repo (→ bundled into the next build at `resources\ks\videos\`); in an unzipped build: `Kompass-1.1.0-win-x64\resources\ks\videos\lesson1.mp4`
+2. `%APPDATA%\Kompass\kompass\videos\lesson1.mp4` (works with the portable exe too)
+3. a `videos\` folder next to `Kompass-1.1.0-portable.exe`
+
+…otherwise the URL set in Settings → KampfScript → *Tutorial video URLs* (https://…mp4), otherwise a "Video coming soon" placeholder.
 
 ## Features
 - Real Chromium rendering in sandboxed `<webview>`s — normal sites and **YouTube** work (▶ YouTube button, `Ctrl+Y`)
 - Tabs (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click to close), back/forward/reload/home
-- Address bar takes URLs **or** search terms → **Kugel** (default), Google or DuckDuckGo (set in ☰ settings)
+- Address bar takes URLs **or** search terms → **Kugel** (default), Google or DuckDuckGo (set in ⚙ settings)
 - Kugel start page + results page drawn by KampfScript (results from the KampfOS search worker)
 - Bookmarks bar (☆ / `Ctrl+D`), history (`Ctrl+H`), all saved as JSON files in your profile
 - Simple ad/tracker blocklist (`resources/ks/blocklist.txt`), toggle in settings
@@ -62,16 +103,17 @@ on_tab_event(fn(ev, id, value) {
 ### Native built-ins
 | group | functions |
 |---|---|
-| UI | `body() box row col label heading button link textbox image settext gettext settip setimage clear destroy addstyle removestyle togglestyle show enable focus on_click on_middle_click on_key set_window_title after every` |
+| UI | `body() box row col label heading button link textbox codebox video image setcolor set_theme set_accent themes confirm settext gettext settip setimage clear destroy addstyle removestyle togglestyle show enable focus on_click on_middle_click on_key set_window_title after every` |
 | tabs | `view_area tab_new tab_navigate tab_select tab_close tab_back tab_forward tab_reload tab_stop tab_url tab_title tab_can_back tab_can_forward tab_page tab_zoom tab_find tab_mute tab_devtools on_tab_event` (events: `title url loading visit favicon error internal popup state`) |
-| services | `load_data save_data kugel_search url_encode url_decode now_text adblock open_external open_editor open_data_folder reload_app quit` |
+| services | `load_data save_data kugel_search url_encode url_decode now_text adblock open_external open_editor open_data_folder reload_app quit app_version clear_browsing_data reset_browser ks_devtools run_sandbox video_file videos_folder open_videos_folder` |
 | core | `print len str num type range push pop insert remove keys values has contains indexof upper lower trim split join replace startswith endswith slice sort reverse map filter min max round random time sleep …` |
 
 ## Build from source
 ```bash
 npm install
 npm start                                   # run (Linux/macOS/Windows)
-npm test                                    # interpreter + browser.ks tests
+npm test                                    # interpreter (+debug hooks) + browser.ks + lessons tests
+KOMPASS_SHOTS=/tmp/shots npm start          # screenshot self-test of the 1.1 pages
 npx electron-builder --win portable --x64   # Windows portable exe
 ```
 

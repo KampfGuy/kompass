@@ -1,7 +1,7 @@
 {
   "name": "kompass",
   "productName": "Kompass",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Kompass - a desktop web browser whose UI and logic are written in KampfScript",
   "main": "src/main.js",
   "author": "KampfGuy",
