@@ -24,12 +24,31 @@
   const addCls = (e, s) => { for (const c of s.split(/\s+/).filter(Boolean)) e.classList.add(styleOk(c)); };
   const styleOk = (s) => { if (!/^[a-zA-Z0-9_-]+$/.test(s)) throw new KError('bad style name: ' + s); return s; };
 
+
+  const CSS_PROPS = ['color', 'background', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing', 'line-height', 'text-align', 'text-transform', 'text-shadow',
+    'padding', 'margin', 'width', 'height', 'max-width', 'min-width', 'min-height', 'border', 'border-radius', 'box-shadow', 'gap', 'opacity', 'justify-content', 'align-items', 'flex-wrap', 'flex', 'cursor'];
+  const FONTS = ['Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana', 'Trebuchet MS', 'Courier New', 'Segoe UI', 'Kompass Sans', 'Kompass Mono', 'system-ui', 'serif', 'sans-serif', 'monospace', 'cursive'];
+  function closePopups() { for (const p of document.querySelectorAll('.ks-popup')) p.remove(); }
+  window.addEventListener('mousedown', (e) => { if (!e.target.closest || !e.target.closest('.ks-popup')) closePopups(); }, true);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopups(); }, true);
+  function cssLen(v, who) {
+    if (typeof v === 'number') return v + 'px';
+    const s = S(v); if (!/^(\d+(\.\d+)?(px|%|em|rem|vh|vw)|auto)$/.test(s)) throw new KError(who + ': size must be a number (pixels) or like "50%", "2em", "auto"'); return s;
+  }
+  function cssOk(prop, v, who) {
+    const p = prop.toLowerCase(); if (!CSS_PROPS.includes(p)) throw new KError(who + ': property not allowed: ' + prop + ' (see css_props())');
+    const val = typeof v === 'number' ? (['opacity', 'font-weight', 'line-height', 'flex'].includes(p) ? String(v) : v + 'px') : S(v);
+    if (val.length > 160 || !/^[#a-zA-Z0-9 .,%()\-"'\/]*$/.test(val) || /url|image|expression|@import|\\/i.test(val)) throw new KError(who + ': value not allowed: ' + val);
+    return [p, val];
+  }
+
   function makeRuntime(opts) {
     let interp;
     const cb = (f, label) => (...args) => interp.invoke(f, args.map(toK), label);
     const HEX = /^#[0-9a-fA-F]{3,8}$/;
     const THEMES = ['brass', 'midnight', 'neon', 'paper'];
     const isFn = (f) => f && (f instanceof K.KFunc || f instanceof K.KBuiltin);
+    const secretEl = (x, who) => { if (!(x instanceof KHandle) || x.kind !== 'secret') throw new KError(who + ' needs a pw_input() field'); return x.el; };
     const el = (x, who) => { if (!(x instanceof KHandle) || !x.el) throw new KError(who + ' needs a UI element, got ' + K.typeOf(x)); return x.el; };
     const make = (kind, tag, cls, parent, who) => {
       const e = document.createElement(tag); if (cls) e.className = cls;
@@ -55,7 +74,7 @@
       codebox: B(([p, t, s]) => {
         const h = make('textbox', 'textarea', 'ks-codebox', p, 'codebox()'); h.el.value = t ? S(t) : ''; h.el.spellcheck = false;
         if (s) addCls(h.el, S(s));
-        const fit = () => { h.el.style.height = 'auto'; h.el.style.height = Math.min(420, h.el.scrollHeight + 4) + 'px'; };
+        const fit = () => { if (h.el.classList.contains('fill')) return; h.el.style.height = 'auto'; h.el.style.height = Math.min(420, h.el.scrollHeight + 4) + 'px'; };
         h.el.addEventListener('input', fit); setTimeout(fit, 0);
         h.el.addEventListener('keydown', (e) => { if (e.key === 'Tab') { e.preventDefault(); const i = h.el.selectionStart; h.el.setRangeText('  ', i, h.el.selectionEnd, 'end'); } e.stopPropagation(); });
         return h;
@@ -71,8 +90,8 @@
       themes: B(() => THEMES.slice(), 0, 0),
       set_accent: B(([c]) => { const v = c ? S(c) : ''; if (v === '') { document.body.style.removeProperty('--acc'); return null; } if (!HEX.test(v)) throw new KError('set_accent(): use a hex color like #c9a227'); document.body.style.setProperty('--acc', v); return null; }, 1, 1),
       confirm: B(([t]) => window.confirm(S(t)), 1, 1),
-      settext: B(([x, t]) => { const e = el(x, 'settext()'); if (x.kind === 'textbox') e.value = S(t); else e.textContent = S(t); return null; }, 2, 2),
-      gettext: B(([x]) => { const e = el(x, 'gettext()'); return x.kind === 'textbox' ? e.value : e.textContent; }, 1, 1),
+      settext: B(([x, t]) => { if (x && x.kind === 'secret') throw new KError('settext(): password fields are private'); const e = el(x, 'settext()'); if (x.kind === 'textbox') e.value = S(t); else e.textContent = S(t); return null; }, 2, 2),
+      gettext: B(([x]) => { if (x && x.kind === 'secret') throw new KError('gettext(): password fields are private'); const e = el(x, 'gettext()'); return x.kind === 'textbox' ? e.value : e.textContent; }, 1, 1),
       settip: B(([x, t]) => { el(x, 'settip()').title = S(t); return null; }, 2, 2),
       setimage: B(([x, url]) => { const e = el(x, 'setimage()'); const u = url ? S(url) : ''; e.style.visibility = ''; if (/^(https?:|data:image\/)/.test(u)) e.src = u; else e.removeAttribute('src'); return null; }, 2, 2),
       clear: B(([x]) => { el(x, 'clear()').replaceChildren(); return null; }, 1, 1),
@@ -89,11 +108,47 @@
       set_window_title: B(([t]) => { document.title = S(t); return null; }, 1, 1),
       after: B(([ms, f]) => { setTimeout(() => cb(f, 'after(' + (+ms || 0) + ')')(), Math.max(0, +ms || 0)); return null; }, 2, 2),
       every: B(([ms, f]) => { setInterval(() => cb(f, 'every(' + (+ms || 0) + ')')(), Math.max(100, +ms || 1000)); return null; }, 2, 2),
+      // ---- styling built-ins (safe: whitelisted CSS properties, no url()/image loading through CSS)
+      setstyle: B(([x, p, v]) => { const e = el(x, 'setstyle()'); const [prop, val] = cssOk(S(p), v, 'setstyle()'); e.style.setProperty(prop, val); return null; }, 3, 3),
+      setfont: B(([x, fam, size, weight]) => {
+        const e = el(x, 'setfont()'); const f = fam === undefined || fam === null ? '' : S(fam);
+        if (f) { if (!/^[a-zA-Z0-9 ,"'-]{1,80}$/.test(f)) throw new KError('setfont(): bad font name'); e.style.fontFamily = f; }
+        if (size !== undefined && size !== null) e.style.fontSize = cssLen(size, 'setfont()');
+        if (weight !== undefined && weight !== null) { const w = S(weight); if (!/^(normal|bold|[1-9]00)$/.test(w)) throw new KError('setfont(): weight is normal, bold or 100..900'); e.style.fontWeight = w; }
+        return null;
+      }, 2, 4),
+      setsize: B(([x, w, h]) => { const e = el(x, 'setsize()'); if (w !== undefined && w !== null) e.style.width = cssLen(w, 'setsize()'); if (h !== undefined && h !== null) e.style.height = cssLen(h, 'setsize()'); return null; }, 2, 3),
+      gradient: B(([x, a, b, deg]) => { const e = el(x, 'gradient()'); const c1 = S(a), c2 = S(b); if (!HEX.test(c1) || !HEX.test(c2)) throw new KError('gradient(): use hex colors like #4285f4'); e.style.background = 'linear-gradient(' + (deg === undefined ? 180 : (+deg || 0)) + 'deg, ' + c1 + ', ' + c2 + ')'; return null; }, 3, 4),
+      colorletters: B(([p, t, colors, s]) => {
+        const h = make('row', 'div', 'ks-letters', p, 'colorletters()'); if (s) addCls(h.el, S(s));
+        const cs = Array.isArray(colors) ? colors.map(S) : [];
+        for (const c of cs) if (!HEX.test(c)) throw new KError('colorletters(): colors must be hex like #ea4335');
+        [...S(t)].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; if (cs.length) sp.style.color = cs[i % cs.length]; h.el.appendChild(sp); });
+        return h;
+      }, 2, 4),
+      spacer: B(([p, px]) => { const h = make('box', 'div', 'ks-spacer', p, 'spacer()'); h.el.style.height = cssLen(px === undefined ? 16 : px, 'spacer()'); return h; }, 1, 2),
+      on_input: B(([x, f, ms]) => { const e = el(x, 'on_input()'); let t = null; const wait = Math.max(0, Math.min(5000, ms === undefined ? 400 : +ms || 0)); e.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => cb(f, 'input')(x.kind === 'textbox' ? e.value : e.textContent), wait); }); return null; }, 2, 3),
+      fonts: B(() => FONTS.slice(), 0, 0),
+      popup: B(([x, y, s]) => {
+        closePopups(); const e = document.createElement('div'); e.className = 'ks-col ks-popup'; if (s) addCls(e, S(s));
+        document.body.appendChild(e); const px = +x || 0, py = +y || 0;
+        requestAnimationFrame(() => { const r = e.getBoundingClientRect(); e.style.left = Math.max(4, Math.min(px - r.width / 2, innerWidth - r.width - 4)) + 'px'; e.style.top = Math.max(4, Math.min(py - r.height / 2, innerHeight - r.height - 4)) + 'px'; });
+        e.style.left = px + 'px'; e.style.top = py + 'px';
+        e.addEventListener('click', (ev) => { if (ev.target.closest('.ks-button,.ks-link')) setTimeout(closePopups, 0); });
+        return new KHandle('box', e);
+      }, 2, 3),
+      close_popups: B(() => { closePopups(); return null; }, 0, 0),
+      css_props: B(() => CSS_PROPS.slice(), 0, 0),
       print: B((a) => { opts.onPrint(a.map(S).join(' ')); return null; }, 0),
     };
 
     // ---------- tabs (real Chromium pages via sandboxed <webview>, or KampfScript-drawn internal pages)
-    const tabs = new Map(); let nextId = 1; let viewArea = null; let tabHandler = null;
+    const tabs = new Map(); let nextId = 1; let viewArea = null; let tabHandler = null; let dblRight = null;
+    if (opts.withBrowser && window.native.onDoubleRight) window.native.onDoubleRight((p) => {
+      if (!dblRight) return; let x = p.x, y = p.y;
+      if (p.web && viewArea) { const r = viewArea.getBoundingClientRect(); x += r.left; y += r.top; }
+      cb(dblRight, 'double right-click')(x, y, !!p.web, p.link || '');
+    });
     const fire = (ev, id, val) => { if (window.KompassDevtools) window.KompassDevtools.event(ev, id, val); if (tabHandler) cb(tabHandler, 'on_tab_event: ' + ev)(ev, id, val === undefined ? null : val); };
     const tab = (id, who) => { const t = tabs.get(id); if (!t) throw new KError(who + ': no tab with id ' + S(id)); return t; };
     function showWeb(t) { t.mode = 'web'; t.page.hidden = true; t.wv.hidden = false; }
@@ -116,6 +171,7 @@
     const browser = {
       view_area: B(([p]) => { viewArea = el(p, 'view_area()'); viewArea.classList.add('ks-viewarea'); return null; }, 1, 1),
       on_tab_event: B(([f]) => { tabHandler = f; return null; }, 1, 1),
+      on_double_right_click: B(([f]) => { dblRight = f; return null; }, 1, 1),
       tab_new: B(([url]) => {
         if (!viewArea) throw new KError('call view_area(container) before tab_new()');
         const id = nextId++;
@@ -185,6 +241,48 @@
       video_file: B(([n]) => window.native.videoFile(S(n)) || '', 1, 1),
       videos_folder: B(() => window.native.videosFolder(), 0, 0),
       open_videos_folder: B(() => { window.native.openVideosFolder(); return null; }, 0, 0),
+      read_script: B(([n]) => { const f = S(n).replace(/\.ks$/, ''); if (!/^[A-Za-z0-9_-]{1,40}$/.test(f)) return ''; return window.native.readScript(f + '.ks') || ''; }, 1, 1),
+      read_resource: B(([n]) => window.native.readResource(S(n)), 1, 1),
+      copy_text: B(([t]) => { window.native.copyText(S(t)); return true; }, 1, 1),
+      save_text_file: B(async ([name, t]) => (await window.native.saveTextFile(S(name), S(t))) || '', 2, 2),
+      // Run a user's KampfScript page (kompass://builder, custom home page) in an isolated interpreter that can
+      // draw into `stage` and use the page API (search / lucky / open_url / engine) wired to browser.ks handlers.
+      run_page: B(async ([code, stage, handlers]) => {
+        const out = []; const hs = handlers instanceof KMap ? handlers : new KMap();
+        const call = (k, args) => { const f = hs.m.get(k); if (isFn(f)) interp.invoke(f, args, 'page: ' + k); return null; };
+        const extra = {
+          search: B(([q]) => call('search', [S(q)]), 1, 1),
+          lucky: B(([q]) => call('lucky', [S(q)]), 1, 1),
+          open_url: B(([u]) => call('open', [S(u)]), 1, 1),
+          engine: B(() => { const e = hs.m.get('engine'); return e === undefined || e === null ? 'kugel' : S(e); }, 0, 0),
+          sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
+        };
+        el(stage, 'run_page()').replaceChildren();
+        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); call('error', [e.message]); }, extra });
+        try { const r = await sb.run(S(code)); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
+        catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
+      }, 2, 3),
+      // ---- password manager. Passwords stay in the main process / host DOM: KampfScript only ever gets
+      // site, username and opaque 'secret' handles (gettext/settext refuse them).
+      pw_status: B(() => toK(window.native.pw.status()), 0, 0),
+      pw_input: B(([p, ph]) => { const h = make('secret', 'input', 'ks-textbox ks-secret', p, 'pw_input()'); h.el.type = 'password'; h.el.placeholder = ph ? S(ph) : 'password'; h.el.autocomplete = 'off'; h.el.spellcheck = false; return h; }, 1, 2),
+      pw_unlock: B(([x]) => { const e = secretEl(x, 'pw_unlock()'); const r = window.native.pw.unlock(e.value); e.value = ''; return toK(r); }, 1, 1),
+      pw_lock: B(() => { window.native.pw.lock(); return null; }, 0, 0),
+      pw_list: B(([q]) => { const r = window.native.pw.list(q ? S(q) : ''); return toK(r.ok ? r.items : []); }, 0, 1),
+      pw_save: B(([id, origin, user, x]) => { const pw = x ? secretEl(x, 'pw_save()').value : null; if (!id && !pw) return toK({ ok: false, error: 'Enter a password' }); const r = window.native.pw.save(id ? S(id) : null, S(origin), user ? S(user) : '', pw === '' ? null : pw); if (x) secretEl(x, 'x').value = ''; return toK(r); }, 3, 4),
+      pw_generate_into: B(([x, n]) => { const e = secretEl(x, 'pw_generate_into()'); e.value = window.native.pw.generate(+n || 20); e.type = 'text'; return null; }, 1, 2),
+      pw_reveal: B(([p, id]) => {
+        const h = make('secret', 'span', 'ks-label ks-secret-text', p, 'pw_reveal()'); const pid = S(id); h.el.textContent = '••••••••••'; h.el.title = 'Click to reveal / hide';
+        let shown = false; h.el.addEventListener('click', (ev) => { ev.stopPropagation(); shown = !shown; if (shown) { const r = window.native.pw.reveal(pid); h.el.textContent = r.ok ? r.password : '(locked)'; setTimeout(() => { if (shown) { shown = false; h.el.textContent = '••••••••••'; } }, 20000); } else h.el.textContent = '••••••••••'; });
+        return h;
+      }, 2, 2),
+      pw_copy: B(([id]) => !!window.native.pw.copy(S(id)).ok, 1, 1),
+      pw_delete: B(([id]) => toK(window.native.pw.remove(S(id))), 1, 1),
+      pw_offer: B(([id, a]) => toK(window.native.pw.offer(+id, S(a))), 2, 2),
+      on_password_offer: B(([f]) => { window.native.pw.onOffer((o) => cb(f, 'password offer')(o)); return null; }, 1, 1),
+      on_vault_lock: B(([f]) => { window.native.pw.onLocked(() => cb(f, 'vault locked')()); return null; }, 1, 1),
+      pw_export: B(async ([kind, x]) => { const k = S(kind); const pass = x ? secretEl(x, 'pw_export()').value : ''; if (k === 'encrypted' && pass.length < 8) return toK({ ok: false, error: 'Choose an export password (8+ characters)' }); const r = await window.native.pw.exportTo(k, pass); if (x) secretEl(x, 'x').value = ''; return toK(r); }, 1, 2),
+      pw_import: B(async ([x]) => { const pass = x ? secretEl(x, 'pw_import()').value : ''; const r = await window.native.pw.importFrom(pass); return toK(r); }, 0, 1),
       // Run untrusted lesson code in a fresh, isolated interpreter: core built-ins only (no UI, tabs or files).
       run_sandbox: B(async ([code, stage]) => {
         const out = [];

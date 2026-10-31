@@ -127,3 +127,12 @@ Main window: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - Kugel results come from a small free search worker; use Google/DuckDuckGo for heavy searching.
 
 MIT licensed.
+
+## What's new in 1.2.0
+
+- **Tutorial videos bundled**: `kompass://learn` plays `lesson1.mp4` (4:50) and `lesson2.mp4` (4:07) from `resources/videos/` with no setup.
+- **G — Make Google page with KS** (`kompass://builder`, toolbar **G**, start page, Learn, Ctrl+G): build your own Google-style home page in KampfScript with a live split view (code ↔ preview), 4 templates, multiple saved pages, and **⌂ Set as my home page** / **↺ Restore default**. The page's search box really searches (Kugel / Google / DuckDuckGo from Settings); "I'm Feeling Lucky" jumps to the top result. New safe styling built-ins: `setstyle`, `setfont`, `setsize`, `gradient`, `colorletters`, `spacer`, `on_input`, `fonts`, `css_props`, `popup`. New Learn lesson ⑨.
+- **For AIs** (`kompass://learn/ai`, also [docs/KAMPFSCRIPT_FOR_AI.md](docs/KAMPFSCRIPT_FOR_AI.md)): one complete, copy-friendly KampfScript reference, generated from the real interpreter/host by `node tools/gen-ai-doc.js` (tests fail if any built-in is undocumented). Copy all / Save as .md / .txt.
+- **Password manager** (`kompass://passwords`, Ctrl+Shift+P): local vault `vault.kpv` (scrypt + AES-256-GCM, master password, auto-lock after 5 min), "Save password?" bar on login, autofill offer on matching sites, reveal/copy/edit/delete/search, strong password generator, CSV and encrypted (.kpx) import/export. KampfScript never receives passwords (opaque `pw_input` / `pw_reveal` handles).
+- **Double right-click** anywhere: KampfScript quick menu (back, forward, reload, new/close tab, bookmark, copy URL, DevTools, settings, Learn, passwords). Single right-click: native context menu (back/forward/reload, copy/paste, open link in new tab, inspect). Hook: `on_double_right_click(fn(x, y, on_web, link))`.
+- Standard Chrome user agent for all pages. Google sign-in may still be refused ("This browser or app may not be secure"); Kompass then shows a note.

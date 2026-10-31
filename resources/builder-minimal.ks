@@ -1,0 +1,11 @@
+# Minimal: just a big word and a search box. Press Enter to search.
+let page = col(body(), "gp-page")
+setstyle(page, "background", "#fbf7ef")
+setstyle(page, "color", "#3b2f22")
+spacer(page, 140)
+let logo = colorletters(page, "search.", ["#3b2f22"], "gp-logo")
+setfont(logo, "Courier New", 72, "bold")
+let bar = row(page, "gp-searchbar")
+setstyle(bar, "border-radius", "4px")
+let q = textbox(bar, "type and press Enter", fn(t) { search(t) }, "gp-search")
+focus(q)

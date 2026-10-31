@@ -16,6 +16,11 @@ Object.assign(builtins, {
   adblock: { fn: () => new K.KMap({ on: true, blocked: 0 }), min: 0, max: 1 },
   on_tab_event: { fn: ([f]) => { handler = f; return null; }, min: 1, max: 1 },
   now_text: { fn: () => 'now', min: 0, max: 0 }, url_encode: { fn: ([s]) => encodeURIComponent(s), min: 1, max: 1 },
+  read_script: { fn: ([n]) => n === 'demo' ? 'label(body(), "hi")' : '', min: 1, max: 1 },
+  read_resource: { fn: ([n]) => { try { return fs.readFileSync(path.join(__dirname, '..', 'resources', n), 'utf8'); } catch (e) { return ''; } }, min: 1, max: 1 },
+  run_page: { fn: () => new K.KMap({ ok: true, output: [], error: '', line: 0, steps: 1 }), min: 2, max: 3 },
+  pw_status: { fn: () => new K.KMap({ exists: true, unlocked: true, count: 1 }), min: 0, max: 0 },
+  pw_list: { fn: () => [new K.KMap({ id: 'x', origin: 'https://a.com', username: 'bob', updated: 1 })], min: 0, max: 1 },
   print: { fn: (a) => { calls.push('print:' + a.join(' ')); return null; }, min: 0, max: 9 },
 });
 (async () => {
@@ -29,7 +34,7 @@ Object.assign(builtins, {
   await it.invoke(handler, ['title', 1, 'Example']);
   assert(calls.some(c => c.startsWith('print:Kompass')));
   assert(calls.includes('set_theme'), 'theme applied');
-  for (const page of ['kompass://settings', 'kompass://learn', 'kompass://about', 'kampf://home', 'kompass://nope']) {
+  for (const page of ['kompass://settings', 'kompass://learn', 'kompass://learn/ai', 'kompass://builder', 'kompass://passwords', 'kompass://page/nothere', 'kompass://page/demo', 'kompass://about', 'kampf://home', 'kompass://nope']) {
     const before = calls.length;
     await it.invoke(handler, ['internal', 1, page]);
     assert(calls.length > before + 5, page + ' drew something');
@@ -37,7 +42,7 @@ Object.assign(builtins, {
   assert(calls.includes('codebox') && calls.includes('video'), 'learn page has code boxes and video slots');
   assert.strictEqual(K.show(await it.repl('fix_url("example.com")')), 'https://example.com');
   assert.strictEqual(K.show(await it.repl('fix_url("kompass://learn")')), 'kompass://learn');
-  assert.strictEqual(K.show(await it.repl('len(LESSONS)')), '8');
+  assert.strictEqual(K.show(await it.repl('len(LESSONS)')), '10');
   console.log('  ok   settings / learn / about pages render');
   // every Learn lesson example runs cleanly, and every exercise has a working solution
   const SOLUTIONS = [
@@ -49,7 +54,19 @@ Object.assign(builtins, {
     'let nums = [3, 9, 4]\nlet total = 0\npush(nums, 10)\nfor x in nums { total += x }\nprint(total)',
     null,
     'fn domain(url) {\n  return split(url, "://")[1]\n}\nprint(domain("https://kompass.app"))',
+    'let colors = ["#4285f4", "#ea4335", "#fbbc05"]\nprint(colors[4 % len(colors)])',
+    'let name = "todo"\nprint("kompass://page/" + name)',
   ];
+  // custom home page: page_home runs the saved builder page via run_page
+  await it.repl('settings.home_ks = "My Google page"');
+  const before = calls.length; await it.invoke(handler, ['internal', 1, 'kompass://home']);
+  assert(calls.slice(before).includes('colorletters') === false, 'custom home does not draw default page directly');
+  assert.strictEqual(K.show(await it.repl('home_desc()')), '"My Google page" (KampfScript)');
+  await it.repl('restore_default_home()');
+  assert.strictEqual(K.show(await it.repl('settings.home_ks')), '');
+  assert.strictEqual(K.show(await it.repl('len(TEMPLATES)')), '4');
+  await it.repl('quick_menu(10, 10, false, "https://x.com")');
+  assert(calls.includes('popup'), 'quick menu draws a popup');
   const lessons = await it.repl('LESSONS');
   const sandbox = async (code) => { const out = []; const sb = new K.Interpreter({ maxSteps: 200000, onPrint: (x) => out.push(x), builtins: { open_tab: { fn: ([u]) => { out.push('[sandbox] would open tab: ' + u); return null; }, min: 1, max: 1 } } }); await sb.run(code); return out; };
   for (let i = 0; i < lessons.length; i++) {

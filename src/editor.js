@@ -3,6 +3,23 @@
   'use strict';
   const K = window.KampfScript;
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+  const PAGE_SAMPLE = `# kompass://page/NAME — a page written in KampfScript (scripts/NAME.ks).
+# Edit, press 💾 Save, then reload the tab (F5). Page API: search(text), lucky(text), open_url(url), engine()
+let page = col(body(), "gp-page")
+setstyle(page, "background", "#fdfbf6")
+setstyle(page, "color", "#202124")
+spacer(page, 50)
+let logo = colorletters(page, "My Page", ["#4285f4", "#ea4335", "#fbbc05", "#34a853"], "gp-logo")
+setfont(logo, "Arial", 64, "bold")
+let n = 0
+let shown = label(page, "Clicked 0 times")
+button(page, "Click me", fn() {
+  n += 1
+  settext(shown, "Clicked " + n + " times")
+}, "gp-btn")
+let bar = row(page, "gp-searchbar")
+let q = textbox(bar, "Search " + engine(), fn(t) { search(t) }, "gp-search")
+`;
   const SAMPLE = `# Welcome to the KampfScript console!  Ctrl+Enter runs.
 let name = "Kampf"
 print("Hello, " + name + "!")
@@ -56,7 +73,15 @@ button(r, "Learn KampfScript", fn() { open_tab("kompass://learn") })
     const it = window.KompassRuntime.makeRuntime({
       rootHandle: new K.KHandle('box', stage), maxSteps: 500000,
       onPrint: (s) => log(s), onError: (e) => log('✖ ' + e.message, 'ed-err'),
-      extra: { open_tab: { fn: ([u]) => { window.KompassMain.openTabFromPage(K.show(u)); return null; }, min: 1, max: 1 } },
+      extra: {
+        open_tab: { fn: ([u]) => { window.KompassMain.openTabFromPage(K.show(u)); return null; }, min: 1, max: 1 },
+        search: { fn: ([q]) => { window.KompassMain.openTabFromPage(K.show(q)); return null; }, min: 1, max: 1 },
+        lucky: { fn: ([q]) => { window.KompassMain.openTabFromPage(K.show(q)); return null; }, min: 1, max: 1 },
+        open_url: { fn: ([u]) => { window.KompassMain.openTabFromPage(K.show(u)); return null; }, min: 1, max: 1 },
+        engine: { fn: () => 'kompass', min: 0, max: 0 },
+        // page_new(title) -> a box in a NEW kompass://script tab; draw a whole page into it with the UI built-ins
+        page_new: { fn: async ([t]) => { const title = K.show(t === undefined ? 'Script page' : t).replace(/[^\w .,!?'()\-]/g, '').slice(0, 60) || 'Script page'; return await window.KompassMain.repl('page_for_script("' + title + '")'); }, min: 0, max: 1 },
+      },
     });
     running = it; const t0 = performance.now();
     try { const r = await it.run(area.value); log('✔ done in ' + r.steps + ' steps, ' + Math.round(performance.now() - t0) + ' ms', 'ed-ok'); }
@@ -71,6 +96,14 @@ button(r, "Learn KampfScript", fn() { open_tab("kompass://learn") })
   mk('▶ Run', run, 'primary');
   mk('■ Stop', () => { if (running) { running.stop(); log('stopped', 'ed-info'); } });
   mk('💾 Save', save);
+  mk('📄 New page', () => {
+    let n = (nameBox.value.trim() || 'mypage').replace(/\.ks$/, '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'mypage';
+    if (window.native.readScript(n + '.ks') !== null && !confirm(n + '.ks exists. Open it as a page (OK) or cancel?')) return;
+    if (window.native.readScript(n + '.ks') === null) window.native.writeScript(n + '.ks', PAGE_SAMPLE.replace(/NAME/g, n));
+    load(n + '.ks');
+    window.KompassMain.repl('new_tab("kompass://page/' + n + '")');
+    log('Saved scripts/' + n + '.ks and opened kompass://page/' + n + ' — edit, 💾 Save, then ↻ reload the tab', 'ed-ok');
+  });
   mk('↻ Save & restart browser', () => { if (current !== '@browser') { load('@browser'); log('Opened browser.ks — edit it, then press this again.', 'ed-info'); return; } if (save()) window.native.reloadApp(); });
   mk('⟲ Reset browser.ks', () => { if (confirm('Restore the original browser.ks?')) { window.native.saveBrowserSource(window.native.defaultSource()); window.native.reloadApp(); } });
   mk('📁 Data folder', () => window.native.openFolder());

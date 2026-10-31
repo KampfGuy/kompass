@@ -9,12 +9,12 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.1.0"
+let VERSION = "1.2.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
 let DEFAULTS = {engine: "kugel", adblock: true, home: HOME, theme: "brass", accent: "",
-  bookmarks_bar: true, devtools: true, video1_url: "", video2_url: ""}
+  bookmarks_bar: true, devtools: true, video1_url: "", video2_url: "", home_ks: ""}
 let settings = load_data("settings", {})
 for k in keys(DEFAULTS) { if settings[k] == nil { settings[k] = DEFAULTS[k] } }
 if settings.home == "kampf://home" { settings.home = HOME }
@@ -70,6 +70,7 @@ let address = textbox(omni, "Search with Kugel or type a URL", fn(t) { go(t) }, 
 let star = button(omni, "☆", fn() { toggle_bookmark() }, "star")
 let tools = row(bar, "toolgroup")
 let yt = button(tools, "▶", fn() { go("https://www.youtube.com/") }, "tool")
+let gp_btn = button(tools, "G  Make Google page with KS", fn() { open_page("kompass://builder") }, "tool gtool")
 let learn_btn = button(tools, "📘", fn() { open_page("kompass://learn") }, "tool")
 let ed_btn = button(tools, "⚡", fn() { open_editor() }, "tool")
 let dt_btn = button(tools, "{ }", fn() { ks_devtools() }, "tool")
@@ -80,11 +81,16 @@ settip(reload_btn, "Reload (F5)")
 settip(home_btn, "Home")
 settip(star, "Bookmark this page (Ctrl+D)")
 settip(yt, "YouTube (Ctrl+Y)")
+settip(gp_btn, "Make Google page with KS (kompass://builder)")
 settip(learn_btn, "Learn KampfScript (kompass://learn)")
 settip(ed_btn, "KampfScript editor & console (Ctrl+Shift+K)")
 settip(dt_btn, "KampfScript DevTools (F12 / Ctrl+Shift+I)")
 settip(gear, "Settings")
 
+let pwbar = row(ui, "pw-bar")
+show(pwbar, false)
+let gnote = row(ui, "google-note")
+show(gnote, false)
 let bmbar = row(ui, "bookmarks")
 show(bmbar, settings.bookmarks_bar)
 let view = box(ui, "view")
@@ -181,6 +187,7 @@ fn go(input_text) {
 }
 
 fn domain(url) {
+  if url == nil { return "" }
   let rest = url
   if contains(rest, "://") { rest = split(rest, "://")[1] }
   let host = split(rest, "/")[0]
@@ -240,6 +247,7 @@ on_tab_event(fn(ev, id, value) {
   if ev == "popup" { new_tab(value); return }
   let t = tabs[str(id)]
   if t == nil { return }
+  if ev == "url" and contains(str(value), "accounts.google.com") and contains(str(value), "/rejected") { google_note(true) }
   if ev == "title" {
     t.title = value
     settext(t.text, value)
@@ -252,7 +260,9 @@ on_tab_event(fn(ev, id, value) {
     togglestyle(t.el, "loading", value)
     if id == current { if value { settext(reload_btn, "✕"); status_text("Loading " + domain(tab_url(id)) + "…") } else { settext(reload_btn, "↻"); status_text("Done") } }
   } else if ev == "visit" {
+    if not contains(str(value), "accounts.google.com") { google_note(false) }
     add_history(value, t.title)
+    if contains(str(tab_url(id)), "accounts.google.com") and (contains(str(value), "Couldn") or contains(value, "not be secure")) { google_note(true) }
   } else if ev == "error" {
     status_text("Could not load page: " + value)
   } else if ev == "internal" {
@@ -293,6 +303,34 @@ fn feature_card(parent, icon, title, desc, action) {
 }
 
 fn page_home(id, page) {
+  if settings.home_ks != "" and settings.home_ks != nil {
+    let mine = find_builder_page(settings.home_ks)
+    if mine != nil {
+      if custom_home(id, page, mine) { return }
+    }
+  }
+  page_default_home(id, page)
+}
+
+# the user's own KampfScript home page (made in kompass://builder)
+fn custom_home(id, page, mine) {
+  set_tab_title(id, mine.name)
+  let holder = box(page, "custom-home")
+  let stage = box(holder, "custom-stage")
+  let bar_ = row(holder, "custom-bar")
+  label(bar_, "★ " + mine.name + " · your KampfScript home page", "custom-bar-name")
+  button(bar_, "✎ Edit", fn() { builder.current = mine.name; save_builder(); tab_navigate(id, "kompass://builder") }, "pill ghost")
+  button(bar_, "↺ Restore default", fn() { restore_default_home(); tab_reload(id) }, "pill ghost")
+  let r = run_page(mine.code, stage, page_handlers(id, false))
+  if r.ok { return true }
+  destroy(holder)
+  let warn = row(page, "custom-error")
+  label(warn, "Your home page \"" + mine.name + "\" has an error: " + r.error, "out-err")
+  button(warn, "✎ Fix it", fn() { builder.current = mine.name; save_builder(); tab_navigate(id, "kompass://builder") }, "pill")
+  return false
+}
+
+fn page_default_home(id, page) {
   set_tab_title(id, "Kompass")
   let c = col(page, "home")
   let hero = col(c, "hero")
@@ -308,6 +346,8 @@ fn page_home(id, page) {
   button(r, "Google", fn() { tab_navigate(id, "https://www.google.com/search?q=" + url_encode(gettext(box_))) }, "chip")
   button(r, "DuckDuckGo", fn() { tab_navigate(id, "https://duckduckgo.com/?q=" + url_encode(gettext(box_))) }, "chip")
   button(r, "YouTube", fn() { tab_navigate(id, "https://www.youtube.com/results?search_query=" + url_encode(gettext(box_))) }, "chip")
+  let mk = button(c, "G   Make Google page with KS  →", fn() { go("kompass://builder") }, "make-gp")
+  settip(mk, "Build your own Google-style start page in KampfScript, then set it as your home page")
   let tiles = row(c, "tiles")
   quick_link(tiles, "▶", "YouTube", "https://www.youtube.com/")
   quick_link(tiles, "W", "Wikipedia", "https://en.wikipedia.org/")
@@ -316,6 +356,7 @@ fn page_home(id, page) {
   quick_link(tiles, "◐", "DuckDuckGo", "https://duckduckgo.com/")
   quick_link(tiles, "⟲", "History", "kompass://history")
   let feats = row(c, "features")
+  feature_card(feats, "G", "Make Google page with KS", "Build your own search home page", fn() { go("kompass://builder") })
   feature_card(feats, "📘", "Learn KampfScript", "Lessons, videos & exercises", fn() { go("kompass://learn") })
   feature_card(feats, "⚙", "Settings", "Themes, search, privacy", fn() { go("kompass://settings") })
   feature_card(feats, "⚡", "Editor", "Write & run .ks scripts", fn() { open_editor() })
@@ -533,6 +574,13 @@ fn page_settings(id, page) {
   let s5 = set_card(c, "⚡", "KampfScript", "kampfscript")
   let r7 = set_row(s5, "Learn KampfScript", "Lessons with runnable examples, exercises and tutorial videos")
   button(r7, "📘 Open kompass://learn", fn() { go("kompass://learn") }, "pill")
+  let r7b = set_row(s5, "Make Google page with KS", "Design your own search home page in KampfScript · home page now: " + home_desc())
+  button(r7b, "G Open builder", fn() { go("kompass://builder") }, "pill")
+  button(r7b, "↺ Restore default home", fn() { restore_default_home(); tab_reload(id) }, "pill ghost")
+  let r7c = set_row(s5, "KampfScript for AIs", "One complete, copy-friendly language reference to paste into an AI assistant")
+  button(r7c, "🤖 Open kompass://learn/ai", fn() { go("kompass://learn/ai") }, "pill ghost")
+  let r7d = set_row(s5, "Passwords", "Built-in encrypted password manager (master password, auto-lock, autofill)")
+  button(r7d, "🔑 Open kompass://passwords", fn() { go("kompass://passwords") }, "pill ghost")
   let r8 = set_row(s5, "Editor & console", "Write .ks scripts or edit browser.ks itself")
   button(r8, "⚡ Editor", fn() { open_editor() }, "pill ghost")
   button(r8, "✎ Edit browser.ks", fn() { open_editor("@browser") }, "pill ghost")
@@ -584,7 +632,7 @@ let LESSONS = [
   {icon: "②", title: "Variables", ui: false,
    text: ["let creates a variable. Assign a new value with =, or update it with += -= *= /=.",
           "Strings join with +. Numbers join with strings automatically. len() counts letters, upper() shouts."],
-   code: "let name = \"Kampf\"\nlet age = 12\nage += 1\nprint(\"Hi \" + name + \", next year you are \" + age)\nprint(upper(name), len(name))",
+   code: "let name = \"Kampf\"\nlet age = 16\nage += 1\nprint(\"Hi \" + name + \", next year you are \" + age)\nprint(upper(name), len(name))",
    task: "Make a variable score = 40, add 2 to it with +=, then print it (42).", starter: "let score = 40\n", expect: "42"},
   {icon: "③", title: "If / else", ui: false,
    text: ["if runs a block only when a condition is true. Compare with == != < > <= >=, combine with and / or / not.",
@@ -615,7 +663,17 @@ let LESSONS = [
    text: ["browser.ks uses browser built-ins: tab_new, tab_navigate(id, url), tab_back, tab_url, on_tab_event(fn(ev, id, value) {...}), on_key(\"ctrl+t\", fn), load_data / save_data.",
           "Here open_tab is sandboxed (it only prints). Try the real thing in the ⚡ editor (Ctrl+Shift+K), or open { } DevTools (F12) and type tab_url(current) in its console to poke the live browser."],
    code: "fn fix_url(s) {\n  if startswith(s, \"http\") { return s }\n  return \"https://\" + s\n}\nfor site in [\"youtube.com\", \"https://github.com\"] {\n  open_tab(fix_url(site))\n}",
-   task: "Write fn domain(url) that returns the part after \"://\" (use split) and print domain(\"https://kompass.app\").", starter: "fn domain(url) {\n  \n}\nprint(domain(\"https://kompass.app\"))\n", expect: "kompass.app"}
+   task: "Write fn domain(url) that returns the part after \"://\" (use split) and print domain(\"https://kompass.app\").", starter: "fn domain(url) {\n  \n}\nprint(domain(\"https://kompass.app\"))\n", expect: "kompass.app"},
+  {icon: "⑨", title: "Make Google page with KS", ui: true,
+   text: ["kompass://builder lets you design your OWN Google-style home page in KampfScript: code on the left, live preview on the right, then ⌂ Set as my home page.",
+          "Styling built-ins: colorletters(parent, text, colors) colours each letter, setfont(el, family, size, weight), setstyle(el, prop, value), gradient(el, c1, c2), setsize(el, w, h), spacer(parent, px). In the builder, search(text) and lucky(text) really search."],
+   code: "let page = col(body())\nlet logo = colorletters(page, \"Kompass\", [\"#4285f4\", \"#ea4335\", \"#fbbc05\", \"#34a853\"])\nsetfont(logo, \"Arial\", 48, \"bold\")\nlet q = textbox(page, \"Search…\")\nbutton(page, \"Search\", fn() { print(\"searching for \" + gettext(q)) })\nbutton(page, \"I'm Feeling Lucky\", fn() { print(\"lucky: \" + gettext(q)) })",
+   task: "Logo colours repeat: let colors = [\"#4285f4\", \"#ea4335\", \"#fbbc05\"]. Print the colour of letter number 4 (index 4) of \"Google\" using colors[i % len(colors)].", starter: "let colors = [\"#4285f4\", \"#ea4335\", \"#fbbc05\"]\n", expect: "#ea4335"},
+  {icon: "⑩", title: "Your own pages", ui: true,
+   text: ["Any script can be a page: save it in the ⚡ editor as scripts/NAME.ks and open kompass://page/NAME — Kompass runs it in its own tab. 📄 New page in the editor makes a starter page for you.",
+          "From an editor script, page_new(\"Title\") opens a fresh tab and returns a box to draw into. Pages get the UI + styling built-ins and search(), lucky(), open_url(), engine()."],
+   code: "let page = col(body())\nheading(page, \"My page\")\nlet todo = [\"learn KampfScript\", \"make a page\"]\nfor t in todo { label(page, \"☐ \" + t) }\nlet box_ = textbox(page, \"add a todo + Enter\", fn(t) { label(page, \"☐ \" + t) })",
+   task: "Print the address of a page saved as scripts/todo.ks: \"kompass://page/\" + name, with let name = \"todo\".", starter: "let name = \"todo\"\n", expect: "kompass://page/todo"}
 ]
 
 let learn = load_data("learn_progress", {done: {}, tried: {}, last: 0})
@@ -692,7 +750,10 @@ fn page_learn(id, page) {
     let hero = col(m, "learn-hero")
     label(hero, "LEARN KAMPFSCRIPT", "eyebrow")
     heading(hero, "Script your own browser", "learn-title")
-    label(hero, "Eight short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
+    label(hero, "Ten short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
+    let extra = row(m, "chips")
+    button(extra, "G Make Google page with KS", fn() { go("kompass://builder") }, "chip")
+    button(extra, "🤖 For AIs: copy the whole language reference", fn() { go("kompass://learn/ai") }, "chip")
     let vids = row(m, "video-row")
     video_slot(vids, 1, "Intro to KampfScript", "variables, print, if, loops")
     video_slot(vids, 2, "Functions, lists & the browser", "functions, lists/maps, and scripting the Kompass browser")
@@ -734,6 +795,15 @@ fn page_learn(id, page) {
     push(items, it)
     i += 1
   }
+  label(side, "More", "learn-more-head")
+  let more1 = row(side, "learn-item learn-extra")
+  label(more1, "G", "learn-item-num")
+  label(more1, "Make Google page with KS", "learn-item-title")
+  on_click(more1, fn() { go("kompass://builder") })
+  let more2 = row(side, "learn-item learn-extra")
+  label(more2, "🤖", "learn-item-num")
+  label(more2, "For AIs: KampfScript reference", "learn-item-title")
+  on_click(more2, fn() { go("kompass://learn/ai") })
   label(side, "Progress is saved in learn_progress.json", "set-side-foot")
   link(side, "Reset progress", fn() { learn.done = {}; save_learn(); show_lesson(0) }, "set-side-foot")
   show_lesson(learn.last)
@@ -768,6 +838,210 @@ fn code_runner(parent, code, with_ui, expect, on_pass) {
   if expect != "" { label(tools_, "Your output is checked automatically", "muted") } else { label(tools_, "Sandboxed: no tabs, files or network", "muted") }
 }
 
+
+# ---------------------------------------------------------- G kompass://builder — Make Google page with KS
+# Your pages are KampfScript programs saved in builder.json. They run in an isolated interpreter
+# (run_page) with the UI + styling built-ins and a small page API: search, lucky, open_url, engine.
+let TEMPLATES = [
+  {name: "Classic Google", file: "builder-classic.ks", desc: "Coloured logo, search box, two buttons, tiles"},
+  {name: "Dark mode", file: "builder-dark.ks", desc: "Gradient background, your own name as logo"},
+  {name: "Minimal", file: "builder-minimal.ks", desc: "One word and a search box"},
+  {name: "Retro portal", file: "builder-retro.ks", desc: "90s neon, clock and random tips"}
+]
+let builder = load_data("builder", {pages: [], current: "", live: true})
+if builder.pages == nil { builder.pages = [] }
+if builder.live == nil { builder.live = true }
+fn save_builder() { save_data("builder", builder) }
+
+fn template_code(i) { return read_resource(TEMPLATES[i].file) }
+fn find_builder_page(name) {
+  for p in builder.pages { if p.name == name { return p } }
+  return nil
+}
+fn home_desc() {
+  if settings.home_ks != "" and settings.home_ks != nil and find_builder_page(settings.home_ks) != nil { return "\"" + settings.home_ks + "\" (KampfScript)" }
+  return "default Kompass start page"
+}
+fn restore_default_home() {
+  settings.home_ks = ""
+  save_settings()
+  status_text("Home page restored to the default Kompass start page")
+}
+
+fn lucky_url(q) {
+  if settings.engine == "google" { return "https://www.google.com/search?btnI=1&q=" + url_encode(q) }
+  if settings.engine == "duckduckgo" { return "https://duckduckgo.com/?q=" + url_encode("! " + q) }
+  let r = kugel_search(q)
+  if r.ok and len(r.results) > 0 { return r.results[0].url }
+  return search_url(q)
+}
+
+# handlers for a running page; preview=true opens results in a new tab so the builder stays open
+fn page_handlers(id, preview) {
+  let target = fn(u) { if preview { new_tab(u) } else { tab_navigate(id, u) } }
+  return {
+    engine: settings.engine,
+    search: fn(q) { if trim(q) != "" { target(fix_url(q)) } },
+    lucky: fn(q) { if trim(q) != "" { target(lucky_url(trim(q))) } },
+    open: fn(u) { target(fix_url(u)) },
+    print: fn(s) { status_text("page: " + s) },
+    error: fn(m) { status_text("Page error: " + m) }
+  }
+}
+
+fn unique_name(base) {
+  let n = base
+  let i = 2
+  while find_builder_page(n) != nil { n = base + " " + str(i); i += 1 }
+  return n
+}
+
+fn page_builder(id, page) {
+  set_tab_title(id, "Make Google page with KS")
+  if len(builder.pages) == 0 {
+    push(builder.pages, {name: "My Google page", code: template_code(0)})
+    builder.current = "My Google page"
+    save_builder()
+  }
+  let cur = find_builder_page(builder.current)
+  if cur == nil { cur = builder.pages[0]; builder.current = cur.name }
+
+  let wrap = col(page, "bld-page")
+  let head = row(wrap, "bld-head")
+  let t = row(head, "bld-title")
+  colorletters(t, "G", ["#4285f4"], "bld-g")
+  heading(t, "Make Google page with KS", "bld-h")
+  let name_box = textbox(head, "page name", nil, "bld-name")
+  settext(name_box, cur.name)
+  let acts = row(head, "bld-actions")
+  let msg = label(wrap, "", "bld-msg")
+  let presets = row(wrap, "bld-presets")
+  let mine = row(wrap, "bld-mine")
+  let split_ = row(wrap, "bld-split")
+  let left = col(split_, "bld-left")
+  let lhead = row(left, "bld-pane-head")
+  label(lhead, "KampfScript", "bld-pane-title")
+  let live_btn = nil
+  live_btn = button(lhead, "Live", fn() { builder.live = not builder.live; save_builder(); togglestyle(live_btn, "selected", builder.live); if builder.live { run_preview() } }, "seg")
+  togglestyle(live_btn, "selected", builder.live)
+  settip(live_btn, "Re-run the preview as you type")
+  let editor = codebox(left, cur.code, "bld-code fill")
+  let out = col(left, "bld-out")
+  let right = col(split_, "bld-right")
+  let rhead = row(right, "bld-pane-head")
+  label(rhead, "Live preview", "bld-pane-title")
+  label(rhead, "search / lucky open a new tab here · engine: " + settings.engine, "muted")
+  let stage = box(right, "bld-stage")
+
+  fn say(s) { settext(msg, s) }
+  fn run_preview() {
+    clear(out)
+    let r = run_page(gettext(editor), stage, page_handlers(id, true))
+    for line in r.output { label(out, line, "out-line") }
+    if r.ok { label(out, "✔ ran in " + str(r.steps) + " steps", "out-ok") } else { label(out, "✖ " + r.error, "out-err") }
+    return r.ok
+  }
+  fn store() {
+    let nm = trim(gettext(name_box))
+    if nm == "" { nm = unique_name("My Google page") }
+    if nm != cur.name and find_builder_page(nm) != nil { say("A page named \"" + nm + "\" already exists"); return false }
+    if settings.home_ks == cur.name and nm != cur.name { settings.home_ks = nm; save_settings() }
+    cur.name = nm
+    cur.code = gettext(editor)
+    builder.current = nm
+    save_builder()
+    draw_mine()
+    return true
+  }
+  fn load_page(p) {
+    cur = p
+    builder.current = p.name
+    save_builder()
+    settext(name_box, p.name)
+    settext(editor, p.code)
+    draw_mine()
+    run_preview()
+  }
+  fn draw_mine() {
+    clear(mine)
+    label(mine, "My pages:", "bld-row-label")
+    for p in builder.pages {
+      let pp = p
+      let star_ = ""
+      if settings.home_ks == p.name { star_ = "⌂ " }
+      let b = button(mine, star_ + p.name, fn() { store(); load_page(pp) }, "chip")
+      togglestyle(b, "selected", p.name == cur.name)
+    }
+  }
+
+  button(acts, "▶ Run", fn() { run_preview() }, "pill")
+  button(acts, "💾 Save", fn() { if store() { say("Saved \"" + cur.name + "\"") } }, "pill ghost")
+  button(acts, "＋ New", fn() {
+    store()
+    let p = {name: unique_name("My Google page"), code: template_code(0)}
+    push(builder.pages, p)
+    load_page(p)
+    say("New page from the Classic Google template")
+  }, "pill ghost")
+  button(acts, "🗑 Delete", fn() {
+    if len(builder.pages) < 2 { say("Keep at least one page (edit it instead)"); return }
+    if not confirm("Delete \"" + cur.name + "\"?") { return }
+    remove(builder.pages, indexof(map(builder.pages, fn(p) { return p.name }), cur.name))
+    if settings.home_ks == cur.name { restore_default_home() }
+    load_page(builder.pages[0])
+  }, "pill ghost")
+  button(acts, "⌂ Set as my home page", fn() {
+    if not store() { return }
+    if not run_preview() { say("Fix the error first — your home page must run cleanly"); return }
+    settings.home_ks = cur.name
+    settings.home = HOME
+    save_settings()
+    draw_mine()
+    say("⌂ \"" + cur.name + "\" is now your home page (new tabs, ⌂ and start-up)")
+  }, "pill gp-home-btn")
+  button(acts, "↺ Restore default", fn() { restore_default_home(); draw_mine(); say("Home page is the default Kompass start page again") }, "pill ghost")
+
+  label(presets, "Templates:", "bld-row-label")
+  let ti = 0
+  for tp in TEMPLATES {
+    let idx = ti
+    let b = button(presets, tp.name, fn() {
+      settext(editor, template_code(idx))
+      run_preview()
+      say("Loaded the \"" + TEMPLATES[idx].name + "\" template — 💾 Save to keep it")
+    }, "chip")
+    settip(b, tp.desc)
+    ti += 1
+  }
+  link(presets, "📘 Lesson", fn() { learn.last = 8; save_learn(); go("kompass://learn") }, "bld-link")
+  link(presets, "🤖 Reference", fn() { go("kompass://learn/ai") }, "bld-link")
+
+  on_input(editor, fn(code) { if builder.live { run_preview() } }, 450)
+  draw_mine()
+  say("Home page now: " + home_desc())
+  run_preview()
+}
+
+# ---------------------------------------------------------- 🤖 kompass://learn/ai — KampfScript for AIs
+fn page_ai(id, page) {
+  set_tab_title(id, "KampfScript for AIs")
+  let doc = read_resource("KAMPFSCRIPT_FOR_AI.md")
+  let c = col(page, "ai-page")
+  let h = row(c, "ai-head")
+  let ht = col(h, "ai-head-text")
+  label(ht, "LEARN · FOR AIs", "eyebrow")
+  heading(ht, "KampfScript for AI assistants", "learn-title")
+  label(ht, "One complete reference — language, every built-in, Kompass architecture, idioms, gotchas and examples. Paste it into ChatGPT, Claude, Grok… then ask it to write KampfScript.", "learn-lead")
+  let acts = row(c, "ai-actions")
+  let info = label(c, str(len(split(doc, "\n"))) + " lines · " + str(len(doc)) + " characters · generated from the real interpreter", "muted")
+  button(acts, "⧉ Copy all", fn() { copy_text(doc); settext(info, "✔ Copied " + str(len(doc)) + " characters to the clipboard"); status_text("KampfScript reference copied") }, "pill ai-copy")
+  button(acts, "💾 Save as .md", fn() { let f = save_text_file("KAMPFSCRIPT_FOR_AI.md", doc); if f != "" { settext(info, "✔ Saved " + f) } }, "pill ghost")
+  button(acts, "💾 Save as .txt", fn() { let f = save_text_file("KAMPFSCRIPT_FOR_AI.txt", doc); if f != "" { settext(info, "✔ Saved " + f) } }, "pill ghost")
+  button(acts, "‹ Back to Learn", fn() { go("kompass://learn") }, "pill ghost")
+  if doc == "" { label(c, "The reference file is missing (resources/KAMPFSCRIPT_FOR_AI.md).", "error"); return }
+  label(c, doc, "ai-doc")
+}
+
 fn render_internal(id, url) {
   let page = tab_page(id)
   let name = split(split(url, "?")[0], "//")
@@ -779,12 +1053,190 @@ fn render_internal(id, url) {
   else if where == "settings" { page_settings(id, page) }
   else if where == "about" { page_about(id, page) }
   else if where == "learn" { page_learn(id, page) }
+  else if where == "learn/ai" or where == "ai" { page_ai(id, page) }
+  else if where == "builder" { page_builder(id, page) }
+  else if where == "passwords" { page_passwords(id, page) }
+  else if startswith(where, "page/") { page_user(id, page, slice(where, 5)) }
+  else if where == "script" { if tabs[str(id)].title == "New tab" { set_tab_title(id, "Script page") } }
   else {
     set_tab_title(id, "Not found")
     let c = col(page, "list-page")
     heading(c, "No such Kompass page: " + url, "page-title")
     link(c, "Go home", fn() { go(HOME) })
   }
+}
+
+
+# ---------------------------------------------------------- Google sign-in note
+fn google_note(on) {
+  clear(gnote)
+  show(gnote, on)
+  if not on { return }
+  label(gnote, "Google may refuse sign-in in browsers it doesn't recognise (\"This browser or app may not be secure\"). Kompass sends a standard Chrome user agent; if Google still says no, try again later, use a passkey / phone prompt, or sign in to that service in another browser.", "")
+  button(gnote, "×", fn() { show(gnote, false) }, "pill ghost")
+}
+
+# ---------------------------------------------------------- 🔑 password manager (save bar)
+# Passwords never reach KampfScript: we only see the site, the username and an offer id.
+on_password_offer(fn(o) {
+  clear(pwbar)
+  show(pwbar, true)
+  let who = o.username
+  if who == "" { who = "(no username)" }
+  let verb = "Save"
+  if o.update { verb = "Update" }
+  label(pwbar, "🔑 " + verb + " password for " + who + " on " + domain(o.origin) + "?", "")
+  if o.locked {
+    let m = pw_input(pwbar, "master password")
+    button(pwbar, "Unlock & save", fn() {
+      let r = pw_unlock(m)
+      if not r.ok { status_text(r.error); return }
+      pw_offer(o.id, "save")
+      show(pwbar, false)
+      status_text("Password saved in your Kompass vault")
+    }, "pill")
+  } else {
+    button(pwbar, verb, fn() { let r = pw_offer(o.id, "save"); show(pwbar, false); if r.ok { status_text("Password saved in your Kompass vault") } else { status_text(r.error) } }, "pill")
+  }
+  button(pwbar, "Not now", fn() { pw_offer(o.id, "never"); show(pwbar, false) }, "pill ghost")
+  button(pwbar, "Passwords…", fn() { open_page("kompass://passwords") }, "pill ghost")
+})
+
+fn page_passwords(id, page) {
+  set_tab_title(id, "Passwords")
+  let c = col(page, "pw-page")
+  label(c, "KOMPASS PASSWORDS", "eyebrow")
+  heading(c, "🔑 Password manager", "learn-title")
+  let st = pw_status()
+  if not st.unlocked {
+    let card = col(c, "pw-lockcard")
+    if st.exists {
+      label(card, "Your vault is locked. Enter your master password.", "lesson-text")
+    } else {
+      label(card, "Create a master password (8+ characters). It encrypts your vault (scrypt + AES-256-GCM) and cannot be recovered — don't forget it.", "lesson-text")
+    }
+    let m = pw_input(card, "master password")
+    focus(m)
+    let err = label(card, "", "out-err")
+    let unlock = fn() { let r = pw_unlock(m); if r.ok { tab_reload(id) } else { settext(err, r.error) } }
+    if st.exists { button(card, "Unlock", unlock, "pill") } else { button(card, "Create vault", unlock, "pill") }
+    label(card, "The vault is the file vault.kpv in your Kompass data folder. It locks itself after 5 minutes without use.", "muted")
+    return
+  }
+  let top = row(c, "chips")
+  let q = textbox(top, "Search sites and usernames", fn(t) { draw(t) }, "set-input")
+  button(top, "＋ Add", fn() { form(nil, "", "") }, "pill")
+  button(top, "🔒 Lock", fn() { pw_lock(); tab_reload(id) }, "pill ghost")
+  let tools2 = row(c, "chips")
+  let xpw = pw_input(tools2, "export/import password (encrypted)")
+  let msg = label(c, "", "muted")
+  button(tools2, "⇩ Export CSV", fn() { if confirm("A CSV file stores passwords in PLAIN TEXT. Export anyway?") { let r = pw_export("csv"); say_r(r, "Exported") } }, "pill ghost")
+  button(tools2, "⇩ Export encrypted", fn() { say_r(pw_export("encrypted", xpw), "Exported (encrypted)") }, "pill ghost")
+  button(tools2, "⇧ Import CSV / .kpx", fn() { say_r(pw_import(xpw), "Imported"); draw(gettext(q)) }, "pill ghost")
+  let editor = col(c, "")
+  let list_ = col(c, "")
+  fn say_r(r, what) {
+    if r.ok {
+      let extra = ""
+      if r.count != nil { extra = " · " + str(r.count) + " logins" }
+      if r.path != nil { extra = extra + " · " + r.path }
+      settext(msg, "✔ " + what + extra)
+    } else { settext(msg, "✖ " + r.error) }
+  }
+  fn form(pid, site, user) {
+    clear(editor)
+    let f = row(editor, "pw-form")
+    let s_ = textbox(f, "https://site.com", nil, "set-input")
+    settext(s_, site)
+    let u_ = textbox(f, "username", nil, "set-input")
+    settext(u_, user)
+    let p_ = pw_input(f, "password (leave empty to keep)")
+    button(f, "🎲 Generate", fn() { pw_generate_into(p_, 20) }, "pill ghost")
+    button(f, "Save", fn() {
+      let r = pw_save(pid, gettext(s_), gettext(u_), p_)
+      if r.ok { clear(editor); draw(gettext(q)); settext(msg, "✔ Saved") } else { settext(msg, "✖ " + r.error) }
+    }, "pill")
+    button(f, "Cancel", fn() { clear(editor) }, "pill ghost")
+  }
+  fn draw(filter_) {
+    clear(list_)
+    let items = pw_list(filter_)
+    label(list_, str(len(items)) + " saved logins · click ••• to reveal (hides again after 20 s)", "muted")
+    for it in items {
+      let item = it
+      let r = row(list_, "pw-row")
+      label(r, domain(item.origin), "pw-site")
+      label(r, item.username, "pw-user")
+      pw_reveal(r, item.id)
+      button(r, "⧉", fn() { pw_copy(item.id); settext(msg, "Password copied (clipboard clears in 30 s)") }, "pill ghost")
+      button(r, "✎", fn() { form(item.id, item.origin, item.username) }, "pill ghost")
+      button(r, "🗑", fn() { if confirm("Delete the login for " + item.username + " on " + domain(item.origin) + "?") { pw_delete(item.id); draw(gettext(q)) } }, "pill ghost")
+    }
+  }
+  draw("")
+}
+on_vault_lock(fn() { if current != nil and tab_url(current) == "kompass://passwords" { tab_reload(current) } })
+
+# ---------------------------------------------------------- double right-click quick menu
+let QUICK = [
+  ["‹", "Back", fn() { tab_back(current) }],
+  ["›", "Forward", fn() { tab_forward(current) }],
+  ["↻", "Reload", fn() { tab_reload(current) }],
+  ["+", "New tab", fn() { new_tab(settings.home) }],
+  ["×", "Close tab", fn() { close_tab(current) }],
+  ["☆", "Bookmark", fn() { toggle_bookmark() }],
+  ["⧉", "Copy URL", fn() { copy_text(tab_url(current)); status_text("Copied " + tab_url(current)) }],
+  ["{ }", "DevTools", fn() { ks_devtools(true) }],
+  ["⚙", "Settings", fn() { open_page("kompass://settings") }],
+  ["📘", "Learn", fn() { open_page("kompass://learn") }],
+  ["🔑", "Passwords", fn() { open_page("kompass://passwords") }],
+  ["G", "My page", fn() { open_page("kompass://builder") }]
+]
+fn quick_menu(x, y, on_web, link_url) {
+  let m = popup(x, y, "quick-menu")
+  let h = row(m, "qm-head")
+  box(h, "compass-mark")
+  label(h, "Kompass quick menu", "")
+  let g = box(m, "qm-grid")
+  for q in QUICK {
+    let b = button(g, "", q[2], "qm-btn")
+    label(b, q[0], "qm-ico")
+    label(b, q[1], "")
+  }
+  if link_url != "" {
+    let lu = link_url
+    button(m, "Open link in new tab", fn() { new_tab(lu) }, "pill ghost")
+  }
+}
+on_double_right_click(fn(x, y, on_web, link_url) { quick_menu(x, y, on_web, link_url) })
+
+# ---------------------------------------------------------- kompass://page/<name> — your own pages (scripts/<name>.ks)
+fn page_user(id, page, name) {
+  set_tab_title(id, name)
+  let code = read_script(name)
+  if code == "" {
+    let c = col(page, "list-page")
+    heading(c, "No page named \"" + name + "\"", "page-title")
+    label(c, "Create scripts/" + name + ".ks in the ⚡ editor (📄 New page), or try kompass://builder.", "muted")
+    button(c, "⚡ Open editor", fn() { open_editor() }, "pill")
+    return
+  }
+  let stage = box(page, "custom-stage")
+  let r = run_page(code, stage, page_handlers(id, false))
+  if not r.ok {
+    let warn = row(page, "custom-error")
+    label(warn, "kompass://page/" + name + ": " + r.error, "out-err")
+    button(warn, "✎ Edit " + name + ".ks", fn() { open_editor(name + ".ks") }, "pill")
+  }
+}
+
+# ---------------------------------------------------------- pages made by ⚡ editor scripts
+# A script run in the editor can call new_page("Title") to get a fresh kompass://script tab to draw into.
+fn page_for_script(title) {
+  let id = new_tab("kompass://script")
+  set_tab_title(id, title)
+  let p = col(tab_page(id), "script-page")
+  return p
 }
 
 # ---------------------------------------------------------- keyboard shortcuts
@@ -800,6 +1252,8 @@ on_key("ctrl+d", fn() { toggle_bookmark() })
 on_key("ctrl+h", fn() { new_tab("kompass://history") })
 on_key("ctrl+y", fn() { new_tab("https://www.youtube.com/") })
 on_key("ctrl+,", fn() { open_page("kompass://settings") })
+on_key("ctrl+g", fn() { open_page("kompass://builder") })
+on_key("ctrl+shift+p", fn() { open_page("kompass://passwords") })
 on_key("f1", fn() { open_page("kompass://learn") })
 on_key("f12", fn() { if settings.devtools { ks_devtools() } })
 on_key("ctrl+shift+i", fn() { if settings.devtools { ks_devtools() } })
