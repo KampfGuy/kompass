@@ -430,3 +430,54 @@ if (process.env.KOMPASS_SHOTS12) {
     app.quit();
   });
 }
+
+// ---------------- v1.3 screenshot self-test: KOMPASS_SHOTS13=/out/dir — the KampfScript Spaceflight Sim
+if (process.env.KOMPASS_SHOTS13) {
+  const out = process.env.KOMPASS_SHOTS13;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[shots13] wrote', name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  const log = async (k, code) => console.log('[shots13]', k, JSON.stringify(await js(code)));
+  const S = ".ks-tabview:not([hidden]) .app-stage";
+  const click = (text, sel) => js(`(()=>{const b=[...document.querySelectorAll('${S} ${sel || '.ks-button'}')].find(b=>b.offsetParent&&b.textContent.trim()===${JSON.stringify(text)});if(b){b.click();return true}return false})()`);
+  const key = (k) => js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)}}));setTimeout(()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:${JSON.stringify(k)}})),30)`);
+  const fps = () => js(`new Promise(r=>{let n=0;const t0=performance.now();const f=()=>{n++;if(performance.now()-t0<2000)requestAnimationFrame(f);else r(Math.round(n/2))};requestAnimationFrame(f)})`);
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots13] PAGE-ERROR', msg); });
+    try {
+      await wait(3500);
+      await js(`Object.keys(localStorage).filter(k=>k.startsWith('ks-store:sfs')).forEach(k=>localStorage.removeItem(k));
+        localStorage.setItem('ks-store:sfs_rockets', JSON.stringify([{name:'Demo rocket',parts:[{id:'coneS',col:11,row:0,rot:0,uid:1},{id:'pod',col:11,row:2,rot:0,uid:2},{id:'chute',col:11,row:4,rot:0,uid:3},{id:'sepS',col:11,row:5,rot:0,uid:4},{id:'tankS',col:11,row:6,rot:0,uid:5},{id:'tankS',col:11,row:10,rot:0,uid:6},{id:'engB',col:11,row:14,rot:0,uid:7},{id:'srbT',col:9,row:11,rot:0,uid:8},{id:'srbT',col:13,row:11,rot:0,uid:9}]}]))`);
+      await go('kompass://spaceflight'); await wait(2500);
+      await log('menu', `(document.querySelector('${S}') ? document.querySelector('${S}').innerText.slice(0,200) : 'NO STAGE') + ' ERR: ' + [...document.querySelectorAll('.custom-error')].map(e=>e.innerText).join(';')`);
+      await shot('kompass13-menu.png');
+      await log('new world', `${JSON.stringify('x')}`); await click('New World'); await wait(500); await click('Create & Play'); await wait(1200);
+      await click('Demo rocket', '.ks-link'); await wait(800);
+      await log('build stats', `[...document.querySelectorAll('${S} b, ${S} .ks-label')].filter(e=>e.offsetParent).map(e=>e.textContent).filter(t=>/m\\/s|^[0-9,.]+$/.test(t)).slice(0,8)`);
+      await shot('kompass13-build.png');
+      await click('Launch ▲'); await wait(1500);
+      await shot('kompass13-flight-pad.png');
+      await click('LAUNCH ▲'); await wait(3500);
+      await log('fps during flight', 'null'); console.log('[shots13] fps', await fps());
+      await log('telemetry', `[...document.querySelectorAll('${S} .ks-label')].filter(e=>e.offsetParent).map(e=>e.textContent).slice(0,24).join(' | ')`);
+      await shot('kompass13-flight-ascent.png');
+      await key(' '); await wait(2500);
+      await shot('kompass13-flight-staged.png');
+      await key('2'); await wait(1200); await shot('kompass13-orbit-view.png');
+      await key('3'); await wait(1200); await shot('kompass13-system-view.png');
+      await js(`(()=>{const s=[...document.querySelectorAll('${S} select')].find(x=>x.offsetParent);s.value='The Moon';s.dispatchEvent(new Event('change'))})()`); await wait(800);
+      await key('1'); await wait(300);
+      await js(`(()=>{const s=[...document.querySelectorAll('${S} .ks-button')].find(b=>b.offsetParent&&b.textContent==='1 Ship');})()`);
+      await wait(1500); await shot('kompass13-moon-orbit.png');
+      await click('🌙 Dark Mode'); await click('← Back to Build'); await wait(1200);
+      await shot('kompass13-build-dark.png');
+      await click('☀ Light Mode'); await wait(300);
+      await go('kompass://learn'); await wait(1500);
+      await js(`(()=>{const b=[...document.querySelectorAll('.ks-button,.ks-link,.lesson-item, *')].find(b=>b.children.length<4&&/New in 1.3/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1000);
+      await js(`(()=>{const b=[...document.querySelectorAll('.ks-button')].find(b=>/Try it/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1500);
+      await shot('kompass13-learn-lesson.png');
+    } catch (e) { console.log('[shots13] error', e && e.stack || e); }
+    app.quit();
+  });
+}

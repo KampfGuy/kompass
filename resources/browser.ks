@@ -673,7 +673,12 @@ let LESSONS = [
    text: ["Any script can be a page: save it in the ⚡ editor as scripts/NAME.ks and open kompass://page/NAME — Kompass runs it in its own tab. 📄 New page in the editor makes a starter page for you.",
           "From an editor script, page_new(\"Title\") opens a fresh tab and returns a box to draw into. Pages get the UI + styling built-ins and search(), lucky(), open_url(), engine()."],
    code: "let page = col(body())\nheading(page, \"My page\")\nlet todo = [\"learn KampfScript\", \"make a page\"]\nfor t in todo { label(page, \"☐ \" + t) }\nlet box_ = textbox(page, \"add a todo + Enter\", fn(t) { label(page, \"☐ \" + t) })",
-   task: "Print the address of a page saved as scripts/todo.ks: \"kompass://page/\" + name, with let name = \"todo\".", starter: "let name = \"todo\"\n", expect: "kompass://page/todo"}
+   task: "Print the address of a page saved as scripts/todo.ks: \"kompass://page/\" + name, with let name = \"todo\".", starter: "let name = \"todo\"\n", expect: "kompass://page/todo"},
+  {icon: "⑪", title: "New in 1.3: games & apps", ui: true,
+   text: ["Friendlier syntax: `template strings` put values inside text with {braces}: `Hi {name}, next year you are {age + 1}`. for i, item in list gives the index too (for key, value in map). x %= 3 works, and typos get a hint: pirnt -> did you mean print?",
+          "Build real apps: canvas(parent, w, h) + draw_rect / draw_circle / draw_line / draw_text / draw_poly, on_frame(fn(dt) {...}) runs every frame, key_down(\"left\") and on_mouse(c, fn(e) {...}) read input, slider / checkbox / dropdown make controls, store_get / store_set remember things, vec / vadd / vlen / atan2 / clamp do the maths. The whole Spaceflight Sim (kompass://spaceflight) is written this way."],
+   code: "let c = canvas(body(), 320, 160)\nlet ball = {x: 40, y: 40, vx: 120, vy: 90}\non_frame(fn(dt) {\n  ball.x += ball.vx * dt\n  ball.y += ball.vy * dt\n  if ball.x < 10 or ball.x > 310 { ball.vx = -ball.vx }\n  if ball.y < 10 or ball.y > 150 { ball.vy = -ball.vy }\n  draw_clear(c, \"#141414\")\n  draw_circle(c, ball.x, ball.y, 10, \"#ff4500\")\n  draw_text(c, 10, 14, `x = {round(ball.x)}`, \"white\", 12)\n})",
+   task: "With let age = 16, print a template string so the output is: next year: 17", starter: "let age = 16\n", expect: "next year: 17"}
 ]
 
 let learn = load_data("learn_progress", {done: {}, tried: {}, last: 0})
@@ -750,10 +755,11 @@ fn page_learn(id, page) {
     let hero = col(m, "learn-hero")
     label(hero, "LEARN KAMPFSCRIPT", "eyebrow")
     heading(hero, "Script your own browser", "learn-title")
-    label(hero, "Ten short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
+    label(hero, "Eleven short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
     let extra = row(m, "chips")
     button(extra, "G Make Google page with KS", fn() { go("kompass://builder") }, "chip")
     button(extra, "🤖 For AIs: copy the whole language reference", fn() { go("kompass://learn/ai") }, "chip")
+    button(extra, "🚀 Example: Spaceflight Sim in KampfScript", fn() { go("kompass://spaceflight") }, "chip")
     let vids = row(m, "video-row")
     video_slot(vids, 1, "Intro to KampfScript", "variables, print, if, loops")
     video_slot(vids, 2, "Functions, lists & the browser", "functions, lists/maps, and scripting the Kompass browser")
@@ -1057,6 +1063,7 @@ fn render_internal(id, url) {
   else if where == "builder" { page_builder(id, page) }
   else if where == "passwords" { page_passwords(id, page) }
   else if startswith(where, "page/") { page_user(id, page, slice(where, 5)) }
+  else if where == "spaceflight" { page_example(id, page, "spaceflight", "Spaceflight Sim") }
   else if where == "script" { if tabs[str(id)].title == "New tab" { set_tab_title(id, "Script page") } }
   else {
     set_tab_title(id, "Not found")
@@ -1227,6 +1234,17 @@ fn page_user(id, page, name) {
     let warn = row(page, "custom-error")
     label(warn, "kompass://page/" + name + ": " + r.error, "out-err")
     button(warn, "✎ Edit " + name + ".ks", fn() { open_editor(name + ".ks") }, "pill")
+  }
+}
+
+# ---------------------------------------------------------- kompass://spaceflight — bundled example apps (resources/<name>.ks)
+fn page_example(id, page, name, title) {
+  set_tab_title(id, title)
+  let stage = box(page, "app-stage")
+  let r = run_page(read_resource(name + ".ks"), stage, page_handlers(id, false))
+  if not r.ok {
+    let warn = row(page, "custom-error")
+    label(warn, "kompass://" + name + ": " + r.error, "out-err")
   }
 }
 

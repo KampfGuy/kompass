@@ -17,7 +17,7 @@
 
   // ------------------------------------------------------------ Tokenizer
   const KEYWORDS = new Set(['let', 'fn', 'return', 'if', 'else', 'while', 'for', 'in', 'break', 'continue', 'true', 'false', 'nil', 'and', 'or', 'not']);
-  const TWO = new Set(['==', '!=', '<=', '>=', '+=', '-=', '*=', '/=']);
+  const TWO = new Set(['==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=']);
   const ONE = '+-*/%<>=()[]{},.:;!';
 
   function tokenize(src) {
@@ -36,6 +36,7 @@
       if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) {
         let j = i, dots = 0;
         while (j < src.length && /[0-9.]/.test(src[j])) { if (src[j] === '.') { if (dots || !/[0-9]/.test(src[j + 1] || '')) break; dots++; } j++; }
+        if (/[eE]/.test(src[j] || '') && /^[eE][+-]?[0-9]/.test(src.slice(j, j + 3))) { j += /[+-]/.test(src[j + 1]) ? 2 : 1; while (j < src.length && /[0-9]/.test(src[j])) j++; }  // v1.3: 1e6, 2.5e-3
         push('num', parseFloat(src.slice(i, j))); i = j; continue;
       }
       if (/[A-Za-z_]/.test(c)) {
@@ -58,7 +59,28 @@
         }
         push('str', s, startLine); i = j; continue;
       }
+      if (c === '`') {
+        // v1.3 template string: `Hello {name}, you are {age + 1}` — {expr} is evaluated, \{ is a literal brace
+        const startLine = line; let j = i + 1, s = ''; const parts = [];
+        while (true) {
+          if (j >= src.length) throw new KError('Unterminated template string (missing closing `)', startLine);
+          const d = src[j];
+          if (d === '`') { j++; break; }
+          if (d === '\n') line++;
+          if (d === '\\') { const e = src[j + 1]; s += e === 'n' ? '\n' : e === 't' ? '\t' : e === undefined ? '' : e; j += 2; continue; }
+          if (d === '{') {
+            let depth = 1, k = j + 1;
+            while (k < src.length && depth) { if (src[k] === '{') depth++; else if (src[k] === '}') depth--; if (depth) k++; }
+            if (depth) throw new KError("Template string: '{' was never closed with '}'", line);
+            parts.push(s); s = ''; parts.push({ code: src.slice(j + 1, k), line }); j = k + 1; continue;
+          }
+          s += d; j++;
+        }
+        parts.push(s); push('tpl', parts, startLine); i = j; continue;
+      }
       const two = src.slice(i, i + 2);
+      if (two === '++' || two === '--') throw new KError("'" + two + "' isn't KampfScript — write x " + two[0] + "= 1", line);
+      if (two === '&&' || two === '||') throw new KError("'" + two + "' isn't KampfScript — use '" + (two === '&&' ? 'and' : 'or') + "'", line);
       if (TWO.has(two)) { push('op', two); i += 2; continue; }
       if (ONE.includes(c)) {
         if (c === '(' || c === '[' || c === '{') stack.push(c);
@@ -139,9 +161,11 @@
           case 'for': {
             next();
             const name = expect('id', undefined, 'a loop variable name after for').value;
+            let name2 = null;   // v1.3: for i, item in list  /  for key, value in map
+            if (isOp(',')) { next(); name2 = expect('id', undefined, 'a second loop variable name after the comma').value; }
             expect('kw', 'in', "'in' after the loop variable");
             const iter = expr();
-            return { type: 'For', name, iter, body: block(), line };
+            return { type: 'For', name, name2, iter, body: block(), line };
           }
           case 'return': {
             next();
@@ -153,7 +177,7 @@
         }
       }
       const e = expr();
-      if (is('op') && ['=', '+=', '-=', '*=', '/='].includes(peek().value)) {
+      if (is('op') && ['=', '+=', '-=', '*=', '/=', '%='].includes(peek().value)) {
         const op = next().value;
         if (!['Ident', 'Index', 'Member'].includes(e.type)) throw new KError("Can't assign to that — left side of '" + op + "' must be a variable, list item or field", line);
         return { type: 'Assign', target: e, op, value: expr(), line };
@@ -235,6 +259,17 @@
       const t = peek(), line = t.line;
       if (t.type === 'num') { next(); return { type: 'Lit', value: t.value, line }; }
       if (t.type === 'str') { next(); return { type: 'Lit', value: t.value, line }; }
+      if (t.type === 'tpl') {
+        next();
+        const parts = t.value.map(x => {
+          if (typeof x === 'string') return x;
+          if (!x.code.trim()) throw new KError('Template string: empty {} — put an expression inside, like {name}', x.line);
+          const prog = parse(x.code);
+          if (prog.body.length !== 1 || prog.body[0].type !== 'ExprStmt') throw new KError('Template string: {' + x.code + '} must be a single expression', x.line);
+          return prog.body[0].expr;
+        });
+        return { type: 'Template', parts, line };
+      }
       if (t.type === 'id') { next(); return { type: 'Ident', name: t.value, line }; }
       if (t.type === 'kw') {
         if (t.value === 'true') { next(); return { type: 'Lit', value: true, line }; }
@@ -281,7 +316,13 @@
     get(name, line) {
       let e = this;
       while (e) { if (e.vars.has(name)) return e.vars.get(name); e = e.parent; }
-      throw new KError("Unknown name '" + name + "' — did you forget 'let " + name + " = ...'?", line);
+      const guess = this.closest(name);
+      throw new KError("Unknown name '" + name + "' — " + (guess ? "did you mean '" + guess + "'? (or " : '') + "did you forget 'let " + name + " = ...'?" + (guess ? ')' : ''), line);
+    }
+    closest(name) {
+      let best = null, bd = name.length > 4 ? 2 : 1;
+      for (let e = this; e; e = e.parent) for (const k of e.vars.keys()) { const d = editDistance(name, k, bd); if (d <= bd && (!best || d < best[1])) best = [k, d]; }
+      return best ? best[0] : null;
     }
     set(name, v) {
       let e = this;
@@ -291,6 +332,12 @@
     define(name, v) { this.vars.set(name, v); }
   }
 
+  function editDistance(a, b, cap) {
+    if (Math.abs(a.length - b.length) > cap) return cap + 1;
+    const A = a.toLowerCase(), Bs = b.toLowerCase(); let prev = Array.from({ length: Bs.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= A.length; i++) { const cur = [i]; for (let j = 1; j <= Bs.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (A[i - 1] === Bs[j - 1] ? 0 : 1)); prev = cur; }
+    return prev[Bs.length];
+  }
   function typeOf(v) {
     if (v === null || v === undefined) return 'nil';
     if (typeof v === 'number') return 'number';
@@ -328,7 +375,9 @@
   class ReturnSig { constructor(v) { this.v = v; } }
   const BREAK = { sig: 'break' }, CONTINUE = { sig: 'continue' };
 
-  const tick = typeof setImmediate === 'function' ? () => new Promise(r => setImmediate(r)) : () => new Promise(r => setTimeout(r, 0));
+  const tick = typeof setImmediate === 'function' ? () => new Promise(r => setImmediate(r))
+    : typeof MessageChannel === 'function' ? (() => { const ch = new MessageChannel(), q = []; ch.port1.onmessage = () => { const r = q.shift(); if (r) r(); }; return () => new Promise(r => { q.push(r); ch.port2.postMessage(0); }); })()
+    : () => new Promise(r => setTimeout(r, 0));
 
   // ------------------------------------------------------------ Interpreter
   class Interpreter {
@@ -348,6 +397,7 @@
       this.callStack = [];   // [{name, line}] of KampfScript functions currently running
       this.noDebug = 0;      // >0 while running REPL code: statement hooks are skipped
       this.globals = new Env(null);
+      for (const k of Object.keys(CONSTANTS)) this.globals.define(k, CONSTANTS[k]);
       const all = Object.assign({}, coreBuiltins(), opts.builtins || {});
       for (const k of Object.keys(all)) {
         const b = all[k];
@@ -440,8 +490,12 @@
           else if (it instanceof KMap) items = [...it.m.keys()];
           else if (typeof it === 'number') items = Array.from({ length: Math.max(0, Math.floor(it)) }, (_, i) => i);
           else throw new KError("Can't loop over a " + typeOf(it) + ' (use a list, string, map or number)', s.line);
-          for (const v of items) {
-            const e2 = new Env(env); e2.define(s.name, v);
+          const pairs = s.name2 !== null && s.name2 !== undefined;
+          const vals = pairs ? (Array.isArray(it) ? it.slice() : typeof it === 'string' ? [...it] : it instanceof KMap ? items.map(k => it.m.get(k)) : items) : null;
+          if (pairs && !(it instanceof KMap)) items = items.map((_, i) => i);
+          for (let n = 0; n < items.length; n++) {
+            const v = items[n];
+            const e2 = new Env(env); e2.define(s.name, v); if (pairs) e2.define(s.name2, vals[n]);
             try { await this.execBlock(s.body, e2); }
             catch (e) { if (e === BREAK) break; if (e === CONTINUE) continue; throw e; }
             await this.step(s.line);
@@ -498,6 +552,7 @@
     async eval(n, env) {
       switch (n.type) {
         case 'Lit': return n.value;
+        case 'Template': { let out = ''; for (const p of n.parts) out += typeof p === 'string' ? p : show(await this.eval(p, env)); return out; }
         case 'Ident': return env.get(n.name, n.line);
         case 'List': { const out = []; for (const it of n.items) out.push(await this.eval(it, env)); return out; }
         case 'MapLit': { const m = new KMap(); for (const [k, v] of n.entries) m.m.set(k, await this.eval(v, env)); return m; }
@@ -521,7 +576,8 @@
         case 'Member': {
           const o = await this.eval(n.obj, env);
           if (o instanceof KMap) return o.m.has(n.name) ? o.m.get(n.name) : null;
-          throw new KError("Can't read field '." + n.name + "' of a " + typeOf(o) + ' (only maps have fields)', n.line);
+          const hint = { length: 'len(x)', size: 'len(x)', push: 'push(list, item)', append: 'push(list, item)', pop: 'pop(list)', join: 'join(list, sep)', split: 'split(text, sep)', upper: 'upper(text)', lower: 'lower(text)', toUpperCase: 'upper(text)', toLowerCase: 'lower(text)', trim: 'trim(text)', map: 'map(list, fn)', filter: 'filter(list, fn)', keys: 'keys(map)', includes: 'has(x, item)', indexOf: 'indexof(x, item)', replace: 'replace(text, a, b)' }[n.name];
+          throw new KError("Can't read field '." + n.name + "' of a " + typeOf(o) + ' (only maps have fields)' + (hint ? ' — use ' + hint + ' instead' : ''), n.line);
         }
         case 'Call': {
           const f = await this.eval(n.callee, env);
@@ -581,8 +637,16 @@
     throw new KError("Can't index into a " + typeOf(o), line);
   }
 
+  // ------------------------------------------------------------ Core constants (v1.3)
+  const CONSTANTS = { PI: Math.PI, TAU: Math.PI * 2, E: Math.E, INFINITY: Infinity };
   // ------------------------------------------------------------ Core builtins
   function need(cond, msg) { if (!cond) throw new KError(msg); }
+  function vecOf(v, nm) { need(v instanceof KMap && typeof v.m.get('x') === 'number' && typeof v.m.get('y') === 'number', nm + ' needs a vector like vec(1, 2) or {x: 1, y: 2}, got ' + show(v)); return v; }
+  function hexRGB(c, nm) {
+    let s = typeof c === 'string' ? c.trim() : ''; need(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s), nm + ' needs a color like "#ff4500", got ' + show(c));
+    if (s.length === 4) s = '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]; const n = parseInt(s.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  const toHex = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
   function coreBuiltins() {
     const B = (fn, min, max) => ({ fn, min, max });
     const str = (v, nm) => { need(typeof v === 'string', nm + ' needs a string, got ' + typeOf(v)); return v; };
@@ -651,10 +715,40 @@
       time: B(() => Date.now(), 0, 0),
       sleep: B(async ([ms], c) => { num(ms, 'sleep()'); const end = Date.now() + Math.min(ms, 60000); while (Date.now() < end) { if (c.interp.stopped) throw new KError('Program stopped.'); await new Promise(r => setTimeout(r, Math.min(50, end - Date.now()))); } return null; }, 1, 1),
       error: B(([m]) => { throw new KError(show(m)); }, 1, 1),
+      // ---- v1.3 math for games & simulations
+      tan: B(([v]) => Math.tan(num(v, 'tan()')), 1, 1),
+      asin: B(([v]) => Math.asin(num(v, 'asin()')), 1, 1),
+      acos: B(([v]) => Math.acos(num(v, 'acos()')), 1, 1),
+      atan: B(([v]) => Math.atan(num(v, 'atan()')), 1, 1),
+      atan2: B(([y, x]) => Math.atan2(num(y, 'atan2()'), num(x, 'atan2()')), 2, 2),
+      exp: B(([v]) => Math.exp(num(v, 'exp()')), 1, 1),
+      log: B(([v, b]) => { num(v, 'log()'); need(v > 0, 'log() needs a number above 0'); return b === undefined ? Math.log(v) : Math.log(v) / Math.log(num(b, 'log()')); }, 1, 2),
+      hypot: B((a) => Math.hypot(...a.map(x => num(x, 'hypot()'))), 1),
+      sign: B(([v]) => Math.sign(num(v, 'sign()')), 1, 1),
+      clamp: B(([v, lo, hi]) => Math.min(num(hi, 'clamp()'), Math.max(num(lo, 'clamp()'), num(v, 'clamp()'))), 3, 3),
+      lerp: B(([a, b, t]) => num(a, 'lerp()') + (num(b, 'lerp()') - a) * num(t, 'lerp()'), 3, 3),
+      random_float: B(([lo, hi]) => { const a = lo === undefined ? 0 : num(lo, 'random_float()'), b = hi === undefined ? 1 : num(hi, 'random_float()'); return a + Math.random() * (b - a); }, 0, 2),
+      fmt: B(([v, d]) => { num(v, 'fmt()'); const n = d === undefined ? 0 : Math.max(0, Math.min(10, Math.floor(num(d, 'fmt()')))); return isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: n, maximumFractionDigits: n }) : fmtNum(v); }, 1, 2),
+      sum: B(([l]) => list(l, 'sum()').reduce((a, x) => a + num(x, 'sum()'), 0), 1, 1),
+      // 2D vectors are plain maps {x, y}
+      vec: B(([x, y]) => new KMap({ x: x === undefined ? 0 : num(x, 'vec()'), y: y === undefined ? 0 : num(y, 'vec()') }), 0, 2),
+      vadd: B(([a, b]) => { vecOf(a, 'vadd()'); vecOf(b, 'vadd()'); return new KMap({ x: a.m.get('x') + b.m.get('x'), y: a.m.get('y') + b.m.get('y') }); }, 2, 2),
+      vsub: B(([a, b]) => { vecOf(a, 'vsub()'); vecOf(b, 'vsub()'); return new KMap({ x: a.m.get('x') - b.m.get('x'), y: a.m.get('y') - b.m.get('y') }); }, 2, 2),
+      vmul: B(([a, k]) => { vecOf(a, 'vmul()'); num(k, 'vmul()'); return new KMap({ x: a.m.get('x') * k, y: a.m.get('y') * k }); }, 2, 2),
+      vlen: B(([a]) => { vecOf(a, 'vlen()'); return Math.hypot(a.m.get('x'), a.m.get('y')); }, 1, 1),
+      vdist: B(([a, b]) => { vecOf(a, 'vdist()'); vecOf(b, 'vdist()'); return Math.hypot(a.m.get('x') - b.m.get('x'), a.m.get('y') - b.m.get('y')); }, 2, 2),
+      vdot: B(([a, b]) => { vecOf(a, 'vdot()'); vecOf(b, 'vdot()'); return a.m.get('x') * b.m.get('x') + a.m.get('y') * b.m.get('y'); }, 2, 2),
+      vnorm: B(([a]) => { vecOf(a, 'vnorm()'); const l = Math.hypot(a.m.get('x'), a.m.get('y')) || 1; return new KMap({ x: a.m.get('x') / l, y: a.m.get('y') / l }); }, 1, 1),
+      vrot: B(([a, r]) => { vecOf(a, 'vrot()'); num(r, 'vrot()'); const c = Math.cos(r), s = Math.sin(r), x = a.m.get('x'), y = a.m.get('y'); return new KMap({ x: x * c - y * s, y: x * s + y * c }); }, 2, 2),
+      // colors: "#rrggbb" helpers for themes and shading
+      shade: B(([c, amt]) => { const [r, g, b] = hexRGB(c, 'shade()'); const a = num(amt, 'shade()'); const f = (v) => a >= 0 ? v + (255 - v) * a : v * (1 + a); return toHex(f(r), f(g), f(b)); }, 2, 2),
+      mix: B(([c1, c2, t]) => { const A = hexRGB(c1, 'mix()'), Bc = hexRGB(c2, 'mix()'), k = num(t, 'mix()'); return toHex(A[0] + (Bc[0] - A[0]) * k, A[1] + (Bc[1] - A[1]) * k, A[2] + (Bc[2] - A[2]) * k); }, 3, 3),
+      rgb: B(([r, g, b, a]) => { const c = (v) => Math.max(0, Math.min(255, Math.round(num(v, 'rgb()')))); return a === undefined ? 'rgb(' + c(r) + ',' + c(g) + ',' + c(b) + ')' : 'rgba(' + c(r) + ',' + c(g) + ',' + c(b) + ',' + Math.max(0, Math.min(1, num(a, 'rgb()'))) + ')'; }, 3, 4),
+      vangle: B(([a]) => { vecOf(a, 'vangle()'); return Math.atan2(a.m.get('y'), a.m.get('x')); }, 1, 1),
     };
   }
 
-  const api = { tokenize, parse, Interpreter, Env, KError, KMap, KFunc, KBuiltin, KHandle, show, typeOf, truthy, OUT_OF_COINS, KEYWORDS };
+  const api = { tokenize, parse, Interpreter, Env, KError, KMap, KFunc, KBuiltin, KHandle, show, typeOf, truthy, OUT_OF_COINS, KEYWORDS, CONSTANTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KampfScript = api;
 })(typeof window !== 'undefined' ? window : this);

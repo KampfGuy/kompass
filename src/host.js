@@ -25,8 +25,21 @@
   const styleOk = (s) => { if (!/^[a-zA-Z0-9_-]+$/.test(s)) throw new KError('bad style name: ' + s); return s; };
 
 
+  // v1.3 games: global keyboard state (key_down) + per-page keypress handlers
+  const KEYS = new Set(); const keyRuntimes = new Set();
+  const normKey = (k) => { k = String(k || '').toLowerCase(); return k === ' ' ? 'space' : k.startsWith('arrow') ? k.slice(5) : k === 'esc' ? 'escape' : k; };
+  const typing = (e) => e.target && e.target.closest && e.target.closest('input,textarea,select,[contenteditable]');
+  window.addEventListener('keydown', (e) => {
+    if (typing(e)) return; const k = normKey(e.key); KEYS.add(k);
+    for (const r of keyRuntimes) { if (!r.alive()) { keyRuntimes.delete(r); continue; } if (r.visible()) { if (['space', 'up', 'down', 'left', 'right'].includes(k)) e.preventDefault(); if (!e.repeat) r.press(k); } }
+  }, true);
+  window.addEventListener('keyup', (e) => KEYS.delete(normKey(e.key)), true);
+  window.addEventListener('blur', () => KEYS.clear());
+  const COLOR = /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\([0-9., %]+\)|[a-zA-Z]{3,20})$/;
   const CSS_PROPS = ['color', 'background', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing', 'line-height', 'text-align', 'text-transform', 'text-shadow',
-    'padding', 'margin', 'width', 'height', 'max-width', 'min-width', 'min-height', 'border', 'border-radius', 'box-shadow', 'gap', 'opacity', 'justify-content', 'align-items', 'flex-wrap', 'flex', 'cursor'];
+    'padding', 'margin', 'width', 'height', 'max-width', 'min-width', 'min-height', 'border', 'border-radius', 'box-shadow', 'gap', 'opacity', 'justify-content', 'align-items', 'flex-wrap', 'flex', 'cursor',
+    // v1.3 layout for app-like pages (floating panels, overlays)
+    'position', 'left', 'top', 'right', 'bottom', 'z-index', 'display', 'flex-direction', 'overflow', 'overflow-y', 'max-height', 'pointer-events', 'white-space', 'border-color', 'border-top', 'border-bottom', 'transform', 'transition', 'backdrop-filter', 'font-variant-numeric', 'accent-color', 'user-select', 'align-self', 'inset', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom', 'padding-left', 'padding-right', 'padding-top', 'padding-bottom', 'border-left', 'border-right', 'text-overflow', 'vertical-align', 'text-decoration', 'outline', 'box-sizing', 'word-break'];
   const FONTS = ['Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana', 'Trebuchet MS', 'Courier New', 'Segoe UI', 'Kompass Sans', 'Kompass Mono', 'system-ui', 'serif', 'sans-serif', 'monospace', 'cursive'];
   function closePopups() { for (const p of document.querySelectorAll('.ks-popup')) p.remove(); }
   window.addEventListener('mousedown', (e) => { if (!e.target.closest || !e.target.closest('.ks-popup')) closePopups(); }, true);
@@ -37,7 +50,7 @@
   }
   function cssOk(prop, v, who) {
     const p = prop.toLowerCase(); if (!CSS_PROPS.includes(p)) throw new KError(who + ': property not allowed: ' + prop + ' (see css_props())');
-    const val = typeof v === 'number' ? (['opacity', 'font-weight', 'line-height', 'flex'].includes(p) ? String(v) : v + 'px') : S(v);
+    const val = typeof v === 'number' ? (['opacity', 'font-weight', 'line-height', 'flex', 'z-index'].includes(p) ? String(v) : v + 'px') : S(v);
     if (val.length > 160 || !/^[#a-zA-Z0-9 .,%()\-"'\/]*$/.test(val) || /url|image|expression|@import|\\/i.test(val)) throw new KError(who + ': value not allowed: ' + val);
     return [p, val];
   }
@@ -53,6 +66,31 @@
     const make = (kind, tag, cls, parent, who) => {
       const e = document.createElement(tag); if (cls) e.className = cls;
       el(parent, who).appendChild(e); return new KHandle(kind, e);
+    };
+    // v1.3: a page's timers / frame loops / key handlers stop by themselves once its stage leaves the screen
+    const rootEl = () => opts.rootHandle && opts.rootHandle.el;
+    const alive = () => !interp.stopped && (!opts.sandbox || !!(rootEl() && rootEl().isConnected));
+    const visible = () => { const r = rootEl(); return !r || !r.getClientRects || r.getClientRects().length > 0; };
+    const frames = new Map(); let frameIds = 1;
+    const col = (c, who) => { const v = S(c); if (!COLOR.test(v)) throw new KError(who + ': color must be like "#ff4500", "rgba(0,0,0,0.5)" or a name like "white"'); return v; };
+    const cv = (x, who) => { if (!(x instanceof KHandle) || x.kind !== 'canvas') throw new KError(who + ' needs a canvas from canvas(parent), got ' + K.typeOf(x)); return x; };
+    const N = (v, who, d) => { if (v === undefined || v === null) { if (d !== undefined) return d; throw new KError(who + ': missing a number'); } if (typeof v !== 'number' || !isFinite(v)) { if (typeof v === 'number') return 0; throw new KError(who + ': expected a number, got ' + K.typeOf(v)); } return v; };
+    const pts = (l, who) => { if (!Array.isArray(l)) throw new KError(who + ' needs a list of points like [[x, y], ...] or [vec(x, y), ...]'); return l.map(p => Array.isArray(p) ? [+p[0] || 0, +p[1] || 0] : p instanceof KMap ? [+p.m.get('x') || 0, +p.m.get('y') || 0] : [0, 0]); };
+    // a color can also be a LIST: ["#333", "#999", "#333"] = left-to-right gradient, ["down", c1, c2] = top-to-bottom
+    const style = (g, color, box, who) => {
+      if (!Array.isArray(color)) return col(color, who);
+      let cs = color.map(S), down = false; if (cs[0] === 'down' || cs[0] === 'across') { down = cs[0] === 'down'; cs = cs.slice(1); }
+      if (cs.length < 2) throw new KError(who + ': a gradient needs at least 2 colors');
+      const [x, y, w, h] = box || [0, 0, 100, 100]; const gr = down ? g.createLinearGradient(x, y, x, y + h) : g.createLinearGradient(x, y, x + w, y);
+      cs.forEach((c, i) => gr.addColorStop(i / (cs.length - 1), col(c, who))); return gr;
+    };
+    const paint = (g, color, lw, who, box) => { if (lw === undefined || lw === null) { g.fillStyle = style(g, color, box, who); g.fill(); } else { g.strokeStyle = style(g, color, box, who); g.lineWidth = N(lw, who); g.stroke(); } };
+    const bboxOf = (P) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const q of P) { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); } return [a, b, c - a, d - b]; };
+    const fitCanvas = (h) => {
+      const c = h.el, r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.round((h.fixedW || r.width) * dpr)), hh = Math.max(1, Math.round((h.fixedH || r.height) * dpr));
+      if (c.width !== w || c.height !== hh) { c.width = w; c.height = hh; }
+      h.w = w / dpr; h.h = hh / dpr; h.g.setTransform(dpr, 0, 0, dpr, 0, 0); h.depth = 0;
     };
     const ui = {
       body: B(() => opts.rootHandle, 0, 0),
@@ -139,6 +177,92 @@
       }, 2, 3),
       close_popups: B(() => { closePopups(); return null; }, 0, 0),
       css_props: B(() => CSS_PROPS.slice(), 0, 0),
+      // ---- v1.3 canvas drawing (2D). Coordinates are CSS pixels, (0,0) = top-left, angles in radians.
+      canvas: B(([p, w, h, s]) => {
+        const k = make('canvas', 'canvas', 'ks-canvas', p, 'canvas()'); if (s) addCls(k.el, S(s));
+        k.g = k.el.getContext('2d'); k.fixedW = typeof w === 'number' ? w : 0; k.fixedH = typeof h === 'number' ? h : 0;
+        if (k.fixedW) k.el.style.width = k.fixedW + 'px'; if (k.fixedH) k.el.style.height = k.fixedH + 'px';
+        if (!k.fixedW || !k.fixedH) k.el.classList.add('fill');
+        k.el.addEventListener('contextmenu', (e) => e.preventDefault());
+        fitCanvas(k); requestAnimationFrame(() => fitCanvas(k));
+        return k;
+      }, 1, 4),
+      canvas_size: B(([c]) => { const h = cv(c, 'canvas_size()'); return toK({ w: h.w, h: h.h }); }, 1, 1),
+      draw_clear: B(([c, color]) => { const h = cv(c, 'draw_clear()'); while (h.depth > 0) { h.g.restore(); h.depth--; } fitCanvas(h); const g = h.g; g.globalAlpha = 1; if (color === undefined || color === null) g.clearRect(0, 0, h.w, h.h); else { g.fillStyle = col(color, 'draw_clear()'); g.fillRect(0, 0, h.w, h.h); } return null; }, 1, 2),
+      draw_rect: B(([c, x, y, w, hh, color, lw]) => { const g = cv(c, 'draw_rect()').g; g.beginPath(); g.rect(N(x, 'draw_rect()'), N(y, 'draw_rect()'), N(w, 'draw_rect()'), N(hh, 'draw_rect()')); paint(g, color, lw, 'draw_rect()', [x, y, w, hh]); return null; }, 6, 7),
+      draw_round_rect: B(([c, x, y, w, hh, r, color, lw]) => { const g = cv(c, 'draw_round_rect()').g; g.beginPath(); g.roundRect(N(x, 'x'), N(y, 'y'), Math.max(0, N(w, 'w')), Math.max(0, N(hh, 'h')), Math.max(0, N(r, 'r'))); paint(g, color, lw, 'draw_round_rect()', [x, y, w, hh]); return null; }, 7, 8),
+      draw_circle: B(([c, x, y, r, color, lw]) => { const g = cv(c, 'draw_circle()').g; g.beginPath(); g.arc(N(x, 'draw_circle()'), N(y, 'draw_circle()'), Math.max(0, N(r, 'draw_circle()')), 0, Math.PI * 2); paint(g, color, lw, 'draw_circle()', [x - r, y - r, 2 * r, 2 * r]); return null; }, 5, 6),
+      draw_arc: B(([c, x, y, r, a0, a1, color, lw]) => { const g = cv(c, 'draw_arc()').g; g.beginPath(); g.arc(N(x, 'x'), N(y, 'y'), Math.max(0, N(r, 'r')), N(a0, 'a0'), N(a1, 'a1')); g.strokeStyle = col(color, 'draw_arc()'); g.lineWidth = N(lw, 'draw_arc()', 1); g.stroke(); return null; }, 7, 8),
+      draw_ellipse: B(([c, x, y, rx, ry, rot, color, lw]) => { const g = cv(c, 'draw_ellipse()').g; g.beginPath(); g.ellipse(N(x, 'x'), N(y, 'y'), Math.max(0, N(rx, 'rx')), Math.max(0, N(ry, 'ry')), N(rot, 'rot', 0), 0, Math.PI * 2); paint(g, color, lw, 'draw_ellipse()'); return null; }, 7, 8),
+      draw_line: B(([c, x1, y1, x2, y2, color, lw]) => { const g = cv(c, 'draw_line()').g; g.beginPath(); g.moveTo(N(x1, 'draw_line()'), N(y1, 'draw_line()')); g.lineTo(N(x2, 'draw_line()'), N(y2, 'draw_line()')); g.strokeStyle = col(color, 'draw_line()'); g.lineWidth = N(lw, 'draw_line()', 1); g.stroke(); return null; }, 6, 7),
+      draw_lines: B(([c, l, color, lw]) => { const g = cv(c, 'draw_lines()').g; const P = pts(l, 'draw_lines()'); if (P.length < 2) return null; g.beginPath(); g.moveTo(P[0][0], P[0][1]); for (const q of P) g.lineTo(q[0], q[1]); g.strokeStyle = col(color, 'draw_lines()'); g.lineWidth = N(lw, 'draw_lines()', 1); g.stroke(); return null; }, 3, 4),
+      draw_poly: B(([c, l, color, lw]) => { const g = cv(c, 'draw_poly()').g; const P = pts(l, 'draw_poly()'); if (P.length < 2) return null; g.beginPath(); g.moveTo(P[0][0], P[0][1]); for (const q of P) g.lineTo(q[0], q[1]); g.closePath(); paint(g, color, lw, 'draw_poly()', bboxOf(P)); return null; }, 3, 4),
+      draw_points: B(([c, l, color, size]) => { const g = cv(c, 'draw_points()').g; const P = pts(l, 'draw_points()'); const z = N(size, 'draw_points()', 1); g.fillStyle = col(color, 'draw_points()'); for (const q of P) g.fillRect(q[0] - z / 2, q[1] - z / 2, z, z); return null; }, 3, 4),
+      draw_text: B(([c, x, y, t, color, size, align, font]) => {
+        const g = cv(c, 'draw_text()').g; const f = font ? S(font) : 'Segoe UI, system-ui, sans-serif';
+        if (!/^[a-zA-Z0-9 ,"'-]{1,80}$/.test(f)) throw new KError('draw_text(): bad font name');
+        g.font = (size && typeof size === 'number' ? size : 14) + 'px ' + f; const a = align ? S(align) : 'left';
+        if (!['left', 'center', 'right'].includes(a)) throw new KError('draw_text(): align is "left", "center" or "right"');
+        g.textAlign = a; g.textBaseline = 'middle'; g.fillStyle = col(color === undefined || color === null ? '#000' : color, 'draw_text()'); g.fillText(S(t), N(x, 'draw_text()'), N(y, 'draw_text()'));
+        return null;
+      }, 4, 8),
+      draw_glow: B(([c, x, y, r, inner, outer]) => { const g = cv(c, 'draw_glow()').g; const X = N(x, 'x'), Y = N(y, 'y'), Rr = Math.max(0.001, N(r, 'r')); const gr = g.createRadialGradient(X, Y, 0, X, Y, Rr); gr.addColorStop(0, col(inner, 'draw_glow()')); gr.addColorStop(1, col(outer === undefined ? 'transparent' : outer, 'draw_glow()')); g.fillStyle = gr; g.beginPath(); g.arc(X, Y, Rr, 0, Math.PI * 2); g.fill(); return null; }, 5, 6),
+      draw_gradient: B(([c, x, y, w, hh, c1, c2]) => { const g = cv(c, 'draw_gradient()').g; const X = N(x, 'x'), Y = N(y, 'y'), W = N(w, 'w'), H = N(hh, 'h'); const gr = g.createLinearGradient(X, Y, X, Y + H); gr.addColorStop(0, col(c1, 'draw_gradient()')); gr.addColorStop(1, col(c2, 'draw_gradient()')); g.fillStyle = gr; g.fillRect(X, Y, W, H); return null; }, 7, 7),
+      draw_alpha: B(([c, a]) => { cv(c, 'draw_alpha()').g.globalAlpha = Math.max(0, Math.min(1, N(a, 'draw_alpha()'))); return null; }, 2, 2),
+      draw_save: B(([c]) => { const h = cv(c, 'draw_save()'); if (h.depth > 200) throw new KError('draw_save(): too many saves without draw_restore()'); h.g.save(); h.depth++; return null; }, 1, 1),
+      draw_restore: B(([c]) => { const h = cv(c, 'draw_restore()'); if (h.depth > 0) { h.g.restore(); h.depth--; } return null; }, 1, 1),
+      draw_translate: B(([c, x, y]) => { cv(c, 'draw_translate()').g.translate(N(x, 'x'), N(y, 'y')); return null; }, 3, 3),
+      draw_rotate: B(([c, a]) => { cv(c, 'draw_rotate()').g.rotate(N(a, 'draw_rotate()')); return null; }, 2, 2),
+      draw_scale: B(([c, x, y]) => { const sx = N(x, 'draw_scale()'); cv(c, 'draw_scale()').g.scale(sx, y === undefined ? sx : N(y, 'draw_scale()')); return null; }, 2, 3),
+      // ---- v1.3 game loop, input, timers
+      on_frame: B(([f]) => {
+        if (!isFn(f)) throw new KError('on_frame() needs a function like fn(dt) { ... }');
+        const id = frameIds++; let last = 0, busy = false;
+        const loop = (now) => {
+          if (!frames.has(id)) return;
+          if (!alive()) { frames.delete(id); return; }
+          requestAnimationFrame(loop);
+          const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60; last = now;
+          if (busy || !visible()) return; busy = true;
+          Promise.resolve(interp.invoke(f, [dt], 'frame')).finally(() => { busy = false; });
+        };
+        frames.set(id, true); requestAnimationFrame(loop); return id;
+      }, 1, 1),
+      stop_frame: B(([id]) => { if (id === undefined || id === null) frames.clear(); else frames.delete(id); return null; }, 0, 1),
+      key_down: B(([k]) => KEYS.has(normKey(S(k))), 1, 1),
+      on_keypress: B(([f]) => { if (!isFn(f)) throw new KError('on_keypress() needs a function like fn(key) { ... }'); keyRuntimes.add({ alive, visible, press: (k) => cb(f, 'key: ' + k)(k) }); return null; }, 1, 1),
+      on_mouse: B(([x, f]) => {
+        const e0 = el(x, 'on_mouse()'); if (!isFn(f)) throw new KError('on_mouse() needs a function like fn(e) { ... }');
+        const btn = (b) => b === 2 ? 'right' : b === 1 ? 'middle' : 'left'; let moveQ = null;
+        const send = (type, ev, extra) => { const r = e0.getBoundingClientRect(); cb(f, 'mouse ' + type)(Object.assign({ type, x: ev.clientX - r.left, y: ev.clientY - r.top, button: btn(ev.button), shift: ev.shiftKey }, extra || {})); };
+        e0.addEventListener('mousedown', (ev) => { ev.stopPropagation(); send('down', ev); });
+        window.addEventListener('mouseup', (ev) => { if (alive() && e0.isConnected) send('up', ev); });
+        e0.addEventListener('mousemove', (ev) => { if (!moveQ) requestAnimationFrame(() => { const q = moveQ; moveQ = null; if (q) send('move', q); }); moveQ = ev; });
+        e0.addEventListener('wheel', (ev) => { ev.preventDefault(); send('wheel', ev, { dy: ev.deltaY > 0 ? 1 : ev.deltaY < 0 ? -1 : 0 }); }, { passive: false });
+        return null;
+      }, 2, 2),
+      every_ms: B(([ms, f]) => { const t = setInterval(() => { if (!alive()) { clearInterval(t); return; } cb(f, 'every_ms(' + (+ms || 0) + ')')(); }, Math.max(16, +ms || 1000)); return t; }, 2, 2),
+      cancel_timer: B(([t]) => { clearInterval(+t); clearTimeout(+t); return null; }, 1, 1),
+      // ---- v1.3 form controls
+      slider: B(([p, lo, hi, v, f, s]) => {
+        const h = make('slider', 'input', 'ks-slider', p, 'slider()'); h.el.type = 'range'; h.el.min = N(lo, 'slider()'); h.el.max = N(hi, 'slider()'); h.el.step = 'any'; h.el.value = N(v, 'slider()', +lo);
+        if (s) addCls(h.el, S(s)); if (isFn(f)) h.el.addEventListener('input', () => cb(f, 'slider')(+h.el.value)); h.el.addEventListener('keydown', (e) => e.stopPropagation()); return h;
+      }, 3, 6),
+      checkbox: B(([p, t, on, f, s]) => {
+        const h = make('checkbox', 'label', 'ks-check', p, 'checkbox()'); const i = document.createElement('input'); i.type = 'checkbox'; i.checked = K.truthy(on);
+        const sp = document.createElement('span'); sp.textContent = S(t); h.el.append(i, sp); h.input = i; if (s) addCls(h.el, S(s));
+        if (isFn(f)) i.addEventListener('change', () => cb(f, 'checkbox: ' + S(t).slice(0, 20))(i.checked)); return h;
+      }, 2, 5),
+      dropdown: B(([p, items, f, s]) => {
+        const h = make('dropdown', 'select', 'ks-dropdown', p, 'dropdown()'); if (!Array.isArray(items)) throw new KError('dropdown() needs a list of choices');
+        for (const it of items) { const o = document.createElement('option'); o.value = o.textContent = S(it); h.el.appendChild(o); }
+        if (s) addCls(h.el, S(s)); if (isFn(f)) h.el.addEventListener('change', () => cb(f, 'dropdown')(h.el.value)); return h;
+      }, 2, 4),
+      getvalue: B(([x]) => { const e = el(x, 'getvalue()'); if (x.kind === 'secret') throw new KError('getvalue(): password fields are private'); if (x.kind === 'checkbox') return x.input.checked; if (x.kind === 'slider') return +e.value; if (x.kind === 'textbox' || x.kind === 'dropdown') return e.value; return e.textContent; }, 1, 1),
+      setvalue: B(([x, v]) => { const e = el(x, 'setvalue()'); if (x.kind === 'secret') throw new KError('setvalue(): password fields are private'); if (x.kind === 'checkbox') x.input.checked = K.truthy(v); else if (x.kind === 'slider' || x.kind === 'textbox' || x.kind === 'dropdown') e.value = S(v); else e.textContent = S(v); return null; }, 2, 2),
+      // ---- v1.3 small key/value storage that survives restarts (per Kompass profile, JSON values, 200 KB each)
+      store_get: B(([k, d]) => { try { const v = localStorage.getItem('ks-store:' + S(k)); return v === null ? (d === undefined ? null : d) : toK(JSON.parse(v)); } catch (e) { return d === undefined ? null : d; } }, 1, 2),
+      store_set: B(([k, v]) => { const j = JSON.stringify(toJS(v)); if (j.length > 200000) throw new KError('store_set(): value too big (max 200 KB)'); localStorage.setItem('ks-store:' + S(k), j); return true; }, 2, 2),
       print: B((a) => { opts.onPrint(a.map(S).join(' ')); return null; }, 0),
     };
 
@@ -258,7 +382,7 @@
           sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
         };
         el(stage, 'run_page()').replaceChildren();
-        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); call('error', [e.message]); }, extra });
+        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
         try { const r = await sb.run(S(code)); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
         catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
       }, 2, 3),
@@ -296,7 +420,7 @@
       }, 1, 2),
     };
 
-    const sandboxUi = () => { const o = Object.assign({}, ui); for (const k of ['on_key', 'set_window_title', 'set_theme', 'set_accent', 'confirm', 'every']) delete o[k]; return o; };
+    const sandboxUi = () => { const o = Object.assign({}, ui); for (const k of ['on_key', 'set_window_title', 'set_theme', 'set_accent', 'confirm', 'every']) delete o[k]; return o; };  // every_ms/on_frame stay: they stop with the page
     const keyHandlers = new Map();
     interp = new K.Interpreter({
       maxSteps: opts.maxSteps || 2000000, yieldEvery: 3000, hooks: opts.hooks || null,

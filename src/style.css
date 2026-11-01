@@ -370,3 +370,10 @@ body[data-theme="midnight"] .try-code { color:#d6e2ff; } body[data-theme="neon"]
 .ks-button.make-gp:hover { filter:brightness(1.08); }
 .ks-button.tool.gtool { width:auto; padding:0 10px; font-size:12.5px; white-space:nowrap; }
 .script-page { padding:24px 32px; gap:10px; min-height:100%; }
+/* v1.3 canvas, form controls and full-window app pages */
+.ks-canvas { display:block; }
+.ks-canvas.fill { width:100%; height:100%; }
+.ks-slider { accent-color:var(--acc, #ff4500); cursor:pointer; }
+.ks-check { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+.ks-dropdown { font:inherit; padding:3px 6px; }
+.app-stage { position:absolute; inset:0; overflow:hidden; background:#fafafa; color:#1a1a1a; }

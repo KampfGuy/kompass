@@ -10,8 +10,8 @@ Electron/Chromium only renders web pages and provides native built-ins; tabs, th
 
 ## Download & run (Windows 10/11 x64)
 Get it from **[Releases](https://github.com/KampfGuy/kompass/releases/latest)**:
-- `Kompass-1.1.0-portable.exe` — single file, no install. Double-click it.
-- `Kompass-1.1.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
+- `Kompass-1.3.0-portable.exe` — single file, no install. Double-click it.
+- `Kompass-1.3.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
 
 The exe is **not code-signed**, so Windows SmartScreen will say "Windows protected your PC". Click **More info → Run anyway**.
 
@@ -50,7 +50,7 @@ Interpreter hooks added for this (in `src/lang.js`, all optional): `hooks.statem
 Kompass uses the first file it finds in:
 1. `resources/videos/` in this repo (→ bundled into the next build at `resources\ks\videos\`); in an unzipped build: `Kompass-1.1.0-win-x64\resources\ks\videos\lesson1.mp4`
 2. `%APPDATA%\Kompass\kompass\videos\lesson1.mp4` (works with the portable exe too)
-3. a `videos\` folder next to `Kompass-1.1.0-portable.exe`
+3. a `videos\` folder next to `Kompass-1.3.0-portable.exe`
 
 …otherwise the URL set in Settings → KampfScript → *Tutorial video URLs* (https://…mp4), otherwise a "Video coming soon" placeholder.
 
@@ -127,6 +127,36 @@ Main window: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - Kugel results come from a small free search worker; use Google/DuckDuckGo for heavy searching.
 
 MIT licensed.
+
+## What's new in 1.3.0 — KampfScript for games & apps
+KampfScript stays small but can now build real interactive apps. As proof, **`kompass://spaceflight`** is a rebuild of the
+*Spaceflight Sim* (original by **Rough_Capital1339 / CatPrinceHQ2**, mod by **KampfGuy**) written entirely in KampfScript:
+[`resources/spaceflight.ks`](resources/spaceflight.ks) (also in `examples/`).
+
+![Spaceflight Sim in KampfScript](docs/kompass13-flight-ascent.png)
+![Rocket builder](docs/kompass13-build.png)
+![System view](docs/kompass13-system-view.png)
+
+- **Template strings** `` `Hi {name}, next year {age + 1}` `` (`\{` for a literal brace)
+- **`for i, item in list`** and **`for key, value in map`**, `%=`, numbers like `1e6`, constants `PI TAU E INFINITY`
+- **Friendlier errors**: *did you mean 'print'?*, hints for `x.length`, `x++`, `&&` / `||`
+- **Maths & vectors**: `atan2 hypot clamp lerp sign log exp fmt sum`, `vec vadd vsub vmul vlen vdist vdot vnorm vrot vangle`
+- **Colours**: `shade mix rgb`, gradients as lists `["down", "#000", "#123"]`
+- **Canvas** (double-buffered, 60 fps): `canvas draw_rect draw_circle draw_line draw_poly draw_text draw_glow draw_save/rotate/translate…`
+- **Input & timing**: `on_frame(fn(dt) {...})`, `key_down("w")`, `on_keypress`, `on_mouse`, `every_ms`
+- **Controls & storage**: `slider checkbox dropdown getvalue setvalue`, `store_get` / `store_set` (persisted)
+- New Learn lesson ⑪ *"New in 1.3: games & apps"* and an updated *For AIs* reference.
+
+```ks
+let c = canvas(page)
+let x = 50
+on_frame(fn(dt) {
+  if key_down("right") { x += 200 * dt }
+  draw_clear(c, "#101820")
+  draw_circle(c, x, 100, 20, "#ff7a1a")
+  draw_text(c, `x = {round(x)}`, 10, 20, "#fff")
+})
+```
 
 ## What's new in 1.2.0
 

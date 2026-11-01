@@ -7,7 +7,7 @@ const K = require(path.join(ROOT, 'src', 'lang.js'));
 const DOCS = require('./builtin-docs.js');
 
 function realBuiltins() {
-  const core = [...new K.Interpreter().globals.vars.keys()];
+  const core = [...new K.Interpreter().globals.vars.entries()].filter(([, v]) => v instanceof K.KBuiltin).map(([k]) => k);
   const host = fs.readFileSync(path.join(ROOT, 'src', 'host.js'), 'utf8').split('\n');
   const groups = { ui: [], tabs: [], services: [], page: [] }; let g = null, inPage = false;
   for (const l of host) {
@@ -28,6 +28,7 @@ const EXAMPLES = [
   ['Word counter with a map', 'let text = "the cat and the hat and the bat"\nlet counts = {}\nfor w in split(text, " ") {\n  if counts[w] == nil { counts[w] = 0 }\n  counts[w] += 1\n}\nfor k in sort(keys(counts)) { print(k, counts[k]) }'],
   ['Closures: a counter factory', 'fn make_counter() {\n  let n = 0\n  return fn() {\n    n += 1\n    return n\n  }\n}\nlet c = make_counter()\nc()\nc()\nprint("count:", c())'],
   ['Recursion and lists', 'fn fib(n) {\n  if n < 2 { return n }\n  return fib(n - 1) + fib(n - 2)\n}\nprint(map(range(10), fib))\nlet evens = filter(range(20), fn(x) { return x % 2 == 0 })\nprint(len(evens), evens[-1], slice(evens, 0, 3))'],
+  ['New in 1.3: template strings, pairs in for, vectors', 'let name = "Kai"\nlet age = 16\nprint(`{name} is {age}, next year {age + 1}`)\nfor i, planet in ["Mercury", "Venus", "Earth"] { print(i, planet) }\nfor k, v in {speed: 12.5, fuel: 80} { print(k, "=", v) }\nlet p = vec(3, 4)\nprint(vlen(p), vadd(p, vec(1, 1)), round(atan2(1, 1) * 180 / PI), fmt(1234567.891, 2))\nlet n = 17\nn %= 5\nprint(n, clamp(150, 0, 100), mix("#000000", "#ffffff", 0.5), 1e3)'],
   ['Strings and gotchas', 'print("a" + 1 + 2)\nprint(1 + 2 + "a")\nprint("ab" * 3, 7 / 2, -7 % 3)\nprint(range(3), str([1, "x", {k: nil}]))\nprint(type(nil), type([]), type({}), [] == [], {} == {})\nlet m = {a: 1}\nprint(m.missing, has(m, "a"))'],
   ['A Google-style page (needs the builder UI)', null, 'builder-classic.ks'],
 ];
@@ -58,6 +59,8 @@ async function build() {
     '- Comments: `# ...` or `// ...` to end of line.',
     '- Numbers: `42`, `3.14`, `.5` (all numbers are floats; integers print without `.0`).',
     '- Strings: `"..."` or `\'...\'`, single line, escapes `\\n \\t \\\\ \\" \\\'`. Strings can be indexed: `s[0]`, `s[-1]`.',
+    '- Template strings (v1.3): `` `Hi {name}, next year {age + 1}` `` — backticks, any expression inside `{ }`, `\\{` for a literal brace; may span lines.',
+    '- Numbers may use exponents (v1.3): `1e6`, `2.5e-3`. Constants: ' + Object.keys(K.CONSTANTS).map(k => '`' + k + '`').join(' ') + ' (PI = 3.14159…, TAU = 2·PI).',
     '- Identifiers: `[A-Za-z_][A-Za-z0-9_]*`.',
     '- Keywords (' + K.KEYWORDS.size + '): ' + [...K.KEYWORDS].map(k => '`' + k + '`').join(' '), '',
     '## 2. Grammar (EBNF)', '', '```ebnf',
@@ -66,9 +69,9 @@ async function build() {
     '           | "fn" IDENT "(" [ IDENT { "," IDENT } ] ")" block',
     '           | "if" expr block { "else" "if" expr block } [ "else" block ]',
     '           | "while" expr block',
-    '           | "for" IDENT "in" expr block',
+    '           | "for" IDENT [ "," IDENT ] "in" expr block   (* for i, item in list / for key, value in map *)',
     '           | "return" [ expr ] | "break" | "continue"',
-    '           | target ( "=" | "+=" | "-=" | "*=" | "/=" ) expr',
+    '           | target ( "=" | "+=" | "-=" | "*=" | "/=" | "%=" ) expr',
     '           | expr ;',
     'target     = IDENT | postfix "[" expr "]" | postfix "." IDENT ;',
     'block      = "{" { statement NL } "}" ;           (* braces are mandatory *)',
@@ -78,7 +81,7 @@ async function build() {
     'add        = mul { ( "+" | "-" ) mul } ;  mul = unary { ( "*" | "/" | "%" ) unary } ;',
     'unary      = "-" unary | postfix ;',
     'postfix    = primary { "(" [ args ] ")" | "[" expr "]" | "." IDENT } ;',
-    'primary    = NUMBER | STRING | "true" | "false" | "nil" | IDENT',
+    'primary    = NUMBER | STRING | TEMPLATE | "true" | "false" | "nil" | IDENT',
     '           | "fn" "(" params ")" block                (* anonymous function *)',
     '           | "(" expr ")" | "[" [ expr { "," expr } ] "]"',
     '           | "{" [ key ":" expr { "," key ":" expr } ] "}" ;   key = IDENT | STRING | NUMBER',
@@ -104,12 +107,13 @@ async function build() {
     '- `let x = v` declares in the CURRENT block scope. Every `{ }` block (if/while/for/function body) is a new scope.',
     '- `x = v` assigns to the nearest existing `x`; if none exists it creates `x` in the current scope (prefer `let`).',
     '- `for v in xs` makes a fresh `v` per iteration, so closures capture each value correctly.',
-    '- `for` iterates lists, strings (characters), maps (keys) and numbers (`for i in 3` → 0, 1, 2).',
+    '- `for` iterates lists, strings (characters), maps (keys) and numbers (`for i in 3` → 0, 1, 2). With two names: `for i, x in list` (index, item), `for k, v in map` (key, value).',
     '- `fn name(a, b) { ... }` defines a function in the current scope (call it before or after, as long as the definition ran). Missing arguments are `nil`; extra arguments are an error.',
     '- Functions are closures. Max recursion depth 200. No default/keyword/variadic parameters.',
     '- Programs are step-metered: ~2,000,000 steps per run or callback in browser.ks, 200,000 in sandboxes/pages. Infinite loops stop with "Step limit reached".', '',
     '## 6. Errors', '',
     '- Any error stops the current program/callback with `Line N: message`. There is NO try/catch; guard with `if` checks instead (e.g. `if has(m, "k")`, `if num(s) != nil`).',
+    '- Errors try to help: typos suggest the closest name (`pirnt` → did you mean print?), `s.length` says use len(s), `x++` says write x += 1, `&&` says use and.',
     '- `error("msg")` raises your own error. Common errors: Unknown name, index out of range, Can\'t add list and number, X expects N arguments.', '');
   const sec = (title, g, note) => {
     P('### ' + title, ''); if (note) P(note, '');
@@ -124,6 +128,9 @@ async function build() {
   sec('7.4 Services (' + real.services.length + ') — browser.ks only', 'services', 'Password built-ins never return a password to KampfScript: they work through opaque `pw_input`/`pw_reveal` "secret" handles (gettext/settext refuse them).');
   sec('7.5 Editor scripts (' + real.editor.length + ') — scripts run with ▶ Run in the ⚡ editor (Ctrl+Shift+K): core + UI/styling + services + these', 'editor');
   sec('7.6 Page API (' + real.page.length + ') — inside kompass://builder pages, a custom home page and kompass://page/<name>', 'page', 'Pages run in an isolated interpreter: core + UI/styling built-ins + these. They cannot touch tabs, files, settings or passwords.');
+  P('### 7.7 Making games & apps (v1.3)', '',
+    'Pages and lesson stages can draw on a `canvas`, run an `on_frame` game loop, read `key_down` / `on_keypress` / `on_mouse`, build controls with `slider` / `checkbox` / `dropdown`, and remember things with `store_get` / `store_set`. Frame loops, timers and key handlers stop automatically when the page is closed. Canvases are double-buffered, so a frame never shows half-drawn. Colours: `"#ff4500"`, `"rgba(0,0,0,0.5)"`, names like `"white"`, or a LIST for a gradient: `["#333", "#999", "#333"]` (left→right) / `["down", top, bottom]`. Setstyle also accepts layout properties (position, left, top, z-index, display, overflow, transform…) so pages can float panels over a canvas. The full Spaceflight Sim (`resources/spaceflight.ks`, open `kompass://spaceflight`) is a ~2000-line example.', '',
+    '```ks', 'let c = canvas(body(), 320, 160)', 'let ball = {x: 40, y: 40, vx: 120, vy: 90}', 'on_frame(fn(dt) {', '  if key_down("space") { ball.vy -= 300 * dt }', '  ball.x += ball.vx * dt', '  ball.y += ball.vy * dt', '  if ball.x < 10 or ball.x > 310 { ball.vx = -ball.vx }', '  if ball.y < 10 or ball.y > 150 { ball.vy = -ball.vy }', '  draw_clear(c, "#141414")', '  draw_circle(c, ball.x, ball.y, 10, "#ff4500")', '  draw_text(c, 10, 14, `x = {round(ball.x)}`, "white", 12)', '})', '```', '');
   P('## 8. Kompass architecture', '',
     '- Kompass is an Electron app. `src/main.js` (main process) owns windows, files, the ad blocker, the password vault and context menus. `src/host.js` (renderer) runs `browser.ks` with the KampfScript interpreter and implements the native built-ins above. Web pages run in sandboxed Chromium `<webview>`s.',
     '- **browser.ks is the whole browser UI**: tab strip, toolbar, bookmarks, internal pages (`kompass://home`, `search`, `history`, `bookmarks`, `settings`, `about`, `learn`, `learn/ai`, `builder`, `passwords`, `page/<name>`), shortcuts. Users edit it with Ctrl+Shift+K → "★ browser.ks"; Settings → Reset restores the shipped one.',
@@ -142,9 +149,10 @@ async function build() {
     '- `range(1, 5)` is `[1, 2, 3, 4]` — the end is EXCLUSIVE. `random(1, 6)` is INCLUSIVE.',
     '- `"Total: " + 1 + 2` is `"Total: 12"`; write `"Total: " + (1 + 2)`.',
     '- Braces are required even for one statement. No `elif` — write `else if`.',
+    '- In templates `{` starts an expression: write `\\{` for a literal brace. Plain "..." strings never interpolate.',
     '- No try/catch, no exceptions to catch. Validate first.',
     '- `[]` and `{}` are truthy; test `len(xs) == 0`.',
-    '- No methods or properties on strings/lists: `len(x)`, `upper(s)`, `push(xs, v)`. Only maps have `.field`.',
+    '- No methods or properties on strings/lists: `len(x)`, `upper(s)`, `push(xs, v)`. Only maps have `.field` — so a map can hold functions: `ship.update = fn() {...}` then `ship.update()`.',
     '- `sort`, `reverse`, `slice`, `map`, `filter` return NEW lists; `push`, `pop`, `insert`, `remove` mutate.',
     '- `replace` replaces ALL occurrences. `split(s)` splits on a single space.',
     '- Assignments are statements: `if (x = 3)` is invalid. `x++` does not exist: use `x += 1`.',

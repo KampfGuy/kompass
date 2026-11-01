@@ -42,7 +42,7 @@ Object.assign(builtins, {
   assert(calls.includes('codebox') && calls.includes('video'), 'learn page has code boxes and video slots');
   assert.strictEqual(K.show(await it.repl('fix_url("example.com")')), 'https://example.com');
   assert.strictEqual(K.show(await it.repl('fix_url("kompass://learn")')), 'kompass://learn');
-  assert.strictEqual(K.show(await it.repl('len(LESSONS)')), '10');
+  assert.strictEqual(K.show(await it.repl('len(LESSONS)')), '11');  // v1.3 added lesson 11
   console.log('  ok   settings / learn / about pages render');
   // every Learn lesson example runs cleanly, and every exercise has a working solution
   const SOLUTIONS = [
@@ -56,6 +56,7 @@ Object.assign(builtins, {
     'fn domain(url) {\n  return split(url, "://")[1]\n}\nprint(domain("https://kompass.app"))',
     'let colors = ["#4285f4", "#ea4335", "#fbbc05"]\nprint(colors[4 % len(colors)])',
     'let name = "todo"\nprint("kompass://page/" + name)',
+    'let age = 16\nprint(`next year: {age + 1}`)',
   ];
   // custom home page: page_home runs the saved builder page via run_page
   await it.repl('settings.home_ks = "My Google page"');
