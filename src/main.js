@@ -145,7 +145,27 @@ app.whenReady().then(() => {
   session.fromPartition('persist:kompass').setPermissionRequestHandler((_wc, perm, cb) => cb(['fullscreen', 'clipboard-sanitized-write', 'media'].includes(perm) && perm !== 'media'));
   Menu.setApplicationMenu(null);
   createWindow();
+  if (!process.env.KOMPASS_NO_UPDATER) updater.start(+process.env.KOMPASS_UPDATE_DELAY_MS || 8000);
 });
+
+// ---------------- auto-update (see src/updater.js and docs/RELEASING.md)
+const { Updater } = require('./updater');
+const updater = new Updater({
+  current: app.getVersion(), workDir: path.join(DATA, 'updates'), settingsFile: path.join(DATA, 'updater.json'),
+  onState: (st) => { if (win && !win.isDestroyed()) win.webContents.send('kompass:update-state', st); },
+  log: (m) => console.log(m),
+});
+fs.mkdirSync(path.join(DATA, 'updates'), { recursive: true });
+ipcMain.on('kompass:update-state', e => { e.returnValue = Object.assign({}, updater.state); });
+ipcMain.handle('kompass:update-check', async () => Object.assign({}, await updater.check(true)));
+ipcMain.on('kompass:update-auto', (e, on) => { updater.setAuto(!!on); e.returnValue = Object.assign({}, updater.state); });
+ipcMain.on('kompass:update-install', e => {
+  const ok = updater.install(true); e.returnValue = ok;
+  if (ok) setTimeout(() => app.quit(), 150);
+  else if (updater.state.url) shell.openExternal(updater.state.url);
+});
+// an update that finished downloading is also applied when Kompass is simply closed (no relaunch)
+app.on('will-quit', () => { if (updater.ready) updater.install(false); });
 app.on('window-all-closed', () => app.quit());
 
 // ---------------- IPC services for the KampfScript runtime
@@ -478,6 +498,32 @@ if (process.env.KOMPASS_SHOTS13) {
       await js(`(()=>{const b=[...document.querySelectorAll('.ks-button')].find(b=>/Try it/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1500);
       await shot('kompass13-learn-lesson.png');
     } catch (e) { console.log('[shots13] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.4 auto-update screenshot self-test: KOMPASS_SHOTS14=/out/dir (used by tools/e2e-update.js)
+if (process.env.KOMPASS_SHOTS14) {
+  const out = process.env.KOMPASS_SHOTS14;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[shots14] wrote', name); };
+  app.whenReady().then(async () => {
+    try {
+      for (let i = 0; i < 120 && updater.state.status !== 'ready'; i++) await wait(250);
+      console.log('[shots14] state', JSON.stringify(updater.state));
+      await wait(800);
+      console.log('[shots14] banner', JSON.stringify(await js("(document.querySelector('.upd-bar:not([hidden])')||{}).innerText||''")));
+      await shot('kompass14-update-banner.png');
+      await js("document.querySelector('.gear').click()"); await wait(1200);
+      await js("(()=>{const h=[...document.querySelectorAll('.set-card-title')].find(e=>e.textContent==='Updates');if(h)h.scrollIntoView({block:'start'})})()"); await wait(500);
+      console.log('[shots14] settings', JSON.stringify(await js("(()=>{const h=[...document.querySelectorAll('.set-card-title')].find(e=>e.textContent==='Updates');return h?h.closest('.set-card').innerText:''})()")));
+      await shot('kompass14-settings-updates.png');
+      if (process.env.KOMPASS_SHOTS14_INSTALL) {
+        await js("(()=>{const b=[...document.querySelectorAll('.upd-bar .ks-button, .upd-bar button')].find(b=>/Restart to update/.test(b.textContent));if(b)b.click();return !!b})()").then(r => console.log('[shots14] clicked restart', r));
+        await wait(3000);
+      }
+    } catch (e) { console.log('[shots14] error', e && e.stack || e); }
     app.quit();
   });
 }

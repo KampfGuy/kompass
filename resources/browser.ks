@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.2.0"
+let VERSION = "1.4.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -89,6 +89,9 @@ settip(gear, "Settings")
 
 let pwbar = row(ui, "pw-bar")
 show(pwbar, false)
+# auto-update banner: shown when a new version has downloaded (see draw_update_bar below)
+let updbar = row(ui, "upd-bar")
+show(updbar, false)
 let gnote = row(ui, "google-note")
 show(gnote, false)
 let bmbar = row(ui, "bookmarks")
@@ -465,7 +468,7 @@ fn page_settings(id, page) {
   let brand_ = row(side, "set-brand")
   box(brand_, "compass-mark")
   label(brand_, "Settings", "set-brand-name")
-  for s in ["Search", "Appearance", "Privacy", "Interface", "KampfScript", "About"] { label(side, s, "set-nav") }
+  for s in ["Search", "Appearance", "Privacy", "Interface", "KampfScript", "Updates", "About"] { label(side, s, "set-nav") }
   label(side, "Every control on this page is KampfScript — see page_settings() in browser.ks", "set-side-foot")
   let c = col(wrap, "set-main")
   heading(c, "Kompass settings", "page-title")
@@ -598,6 +601,24 @@ fn page_settings(id, page) {
   button(r11, "Reset & restart", fn() {
     if confirm("Restore the original browser.ks and restart Kompass? Your edits to browser.ks will be lost.") { reset_browser() }
   }, "pill danger")
+
+  # --- updates
+  let su = set_card(c, "⬆", "Updates", "updates")
+  let ust = update_state()
+  set_switch(su, "Auto-update", "Check GitHub on launch and every few hours, download new versions in the background and install them on restart", ust.autoUpdate, fn() {
+    let n = update_auto(not update_state().autoUpdate)
+    return n.autoUpdate
+  })
+  let ru = set_row(su, "Kompass " + app_version(), update_text(ust))
+  let uinfo = label(ru, "", "set-desc upd-info")
+  button(ru, "Check for updates", fn() {
+    settext(uinfo, "Checking…")
+    let r = update_check()
+    settext(uinfo, update_text(r))
+  }, "pill")
+  let urestart = button(ru, "Restart to update", fn() { update_install() }, "pill")
+  show(urestart, ust.status == "ready")
+  push(upd_listeners, fn(st) { settext(uinfo, update_text(st)); show(urestart, st.status == "ready") })
 
   # --- about
   let s6 = set_card(c, "🧭", "About", "about")
@@ -1108,6 +1129,42 @@ on_password_offer(fn(o) {
   button(pwbar, "Not now", fn() { pw_offer(o.id, "never"); show(pwbar, false) }, "pill ghost")
   button(pwbar, "Passwords…", fn() { open_page("kompass://passwords") }, "pill ghost")
 })
+
+# ---------------------------------------------------------- auto-update
+# The native updater checks GitHub on launch and every 4 hours, downloads + verifies the new
+# Kompass exe in the background and tells us here. Errors / offline stay silent.
+let upd_dismissed = ""
+fn update_text(st) {
+  if st.status == "checking" { return "Checking for updates…" }
+  if st.status == "downloading" { return "Downloading Kompass " + st.latest + "… " + st.progress + "%" }
+  if st.status == "ready" { return "Kompass " + st.latest + " is ready — restart to update" }
+  if st.status == "installing" { return "Installing update…" }
+  if st.status == "uptodate" { return "You're up to date" }
+  if st.status == "available" { return "Kompass " + st.latest + " is available" }
+  if st.status == "error" { return "Couldn't check for updates: " + st.error }
+  return "Auto-update is " + (st.autoUpdate and "on" or "off")
+}
+fn draw_update_bar(st) {
+  clear(updbar)
+  let want = (st.status == "ready" or st.status == "available") and upd_dismissed != st.latest
+  show(updbar, want)
+  if not want { return }
+  label(updbar, "⬆", "upd-icon")
+  if st.status == "ready" {
+    label(updbar, "Update ready — Kompass " + st.latest + " installs when you restart", "upd-text")
+    button(updbar, "Restart to update", fn() { update_install() }, "pill")
+  } else {
+    label(updbar, "Kompass " + st.latest + " is available", "upd-text")
+    button(updbar, "Download", fn() { update_install() }, "pill")
+  }
+  button(updbar, "Later", fn() { upd_dismissed = st.latest; show(updbar, false) }, "pill ghost")
+}
+let upd_listeners = []
+on_update(fn(st) {
+  draw_update_bar(st)
+  for f in upd_listeners { f(st) }
+})
+draw_update_bar(update_state())
 
 fn page_passwords(id, page) {
   set_tab_title(id, "Passwords")

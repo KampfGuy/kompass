@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld('native', {
     onOffer: (f) => ipcRenderer.on('kompass:pw-offer', (_e, o) => f(o)),
     onLocked: (f) => ipcRenderer.on('kompass:pw-locked', () => f()),
   },
+  update: {
+    state: () => ipcRenderer.sendSync('kompass:update-state'),
+    check: () => ipcRenderer.invoke('kompass:update-check'),
+    auto: (on) => ipcRenderer.sendSync('kompass:update-auto', on),
+    install: () => ipcRenderer.sendSync('kompass:update-install'),
+    onState: (f) => ipcRenderer.on('kompass:update-state', (_e, s) => f(s)),
+  },
   onDoubleRight: (f) => ipcRenderer.on('kompass:double-right', (_e, p) => f(p)),
   onOpenTab: (f) => ipcRenderer.on('kompass:open-tab', (_e, u) => f(u)),
   onKey: (f) => ipcRenderer.on('kompass:key', (_e, k) => f(k)),

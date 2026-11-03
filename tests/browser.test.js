@@ -21,6 +21,7 @@ Object.assign(builtins, {
   run_page: { fn: () => new K.KMap({ ok: true, output: [], error: '', line: 0, steps: 1 }), min: 2, max: 3 },
   pw_status: { fn: () => new K.KMap({ exists: true, unlocked: true, count: 1 }), min: 0, max: 0 },
   pw_list: { fn: () => [new K.KMap({ id: 'x', origin: 'https://a.com', username: 'bob', updated: 1 })], min: 0, max: 1 },
+  update_state: { fn: () => new K.KMap({ status: 'idle', current: '1.4.0', latest: '', progress: 0, error: '', url: '', kind: 'portable', autoUpdate: true }), min: 0, max: 0 },
   print: { fn: (a) => { calls.push('print:' + a.join(' ')); return null; }, min: 0, max: 9 },
 });
 (async () => {

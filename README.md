@@ -10,8 +10,8 @@ Electron/Chromium only renders web pages and provides native built-ins; tabs, th
 
 ## Download & run (Windows 10/11 x64)
 Get it from **[Releases](https://github.com/KampfGuy/kompass/releases/latest)**:
-- `Kompass-1.3.0-portable.exe` — single file, no install. Double-click it.
-- `Kompass-1.3.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
+- `Kompass-1.4.0-portable.exe` — single file, no install. Double-click it.
+- `Kompass-1.4.0-win-x64.zip` — unzip anywhere, run `Kompass.exe`.
 
 The exe is **not code-signed**, so Windows SmartScreen will say "Windows protected your PC". Click **More info → Run anyway**.
 
@@ -50,7 +50,7 @@ Interpreter hooks added for this (in `src/lang.js`, all optional): `hooks.statem
 Kompass uses the first file it finds in:
 1. `resources/videos/` in this repo (→ bundled into the next build at `resources\ks\videos\`); in an unzipped build: `Kompass-1.1.0-win-x64\resources\ks\videos\lesson1.mp4`
 2. `%APPDATA%\Kompass\kompass\videos\lesson1.mp4` (works with the portable exe too)
-3. a `videos\` folder next to `Kompass-1.3.0-portable.exe`
+3. a `videos\` folder next to `Kompass-1.4.0-portable.exe`
 
 …otherwise the URL set in Settings → KampfScript → *Tutorial video URLs* (https://…mp4), otherwise a "Video coming soon" placeholder.
 
@@ -127,6 +127,15 @@ Main window: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - Kugel results come from a small free search worker; use Google/DuckDuckGo for heavy searching.
 
 MIT licensed.
+
+## What's new in 1.4.0 — automatic updates
+- Kompass now **updates itself**. Install 1.4.0 once (portable exe); from then on it checks GitHub on launch and every 4 hours,
+  downloads + verifies (sha512) new versions in the background and shows **"Update ready — restart to update"**.
+  Restart (or just close Kompass) and the new version is in place — same file, same data.
+- *Settings → Updates*: **Auto-update** switch (on by default), **Check for updates**, current version.
+- The zip build can't replace itself; it shows "new version available → Download".
+- KampfScript: `update_state() update_check() update_auto(on) update_install() on_update(fn)`.
+- For maintainers: `node tools/release.js` builds and publishes everything the updater needs — see `docs/RELEASING.md`.
 
 ## What's new in 1.3.0 — KampfScript for games & apps
 KampfScript stays small but can now build real interactive apps. As proof, **`kompass://spaceflight`** is a rebuild of the

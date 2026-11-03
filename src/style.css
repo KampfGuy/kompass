@@ -377,3 +377,10 @@ body[data-theme="midnight"] .try-code { color:#d6e2ff; } body[data-theme="neon"]
 .ks-check { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
 .ks-dropdown { font:inherit; padding:3px 6px; }
 .app-stage { position:absolute; inset:0; overflow:hidden; background:#fafafa; color:#1a1a1a; }
+
+/* auto-update banner */
+.upd-bar { gap:10px; align-items:center; padding:6px 12px; background:color-mix(in srgb, var(--acc) 22%, var(--card)); border-bottom:1px solid var(--line); font-size:13px; }
+.upd-bar[hidden] { display:none; }
+.upd-icon { font-weight:700; color:var(--acc); }
+.upd-text { flex:1; }
+.upd-info { margin-left:8px; }
