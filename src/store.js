@@ -7,7 +7,9 @@
 const fs = require('fs'), path = require('path');
 const REPO = 'KampfGuy/kugel-store';
 const RAW = 'https://raw.githubusercontent.com/' + REPO + '/main';
-const MAX_BYTES = 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;     // biggest store file Kompass will download
+const MAX_CODE = 2 * 1024 * 1024;      // biggest program you can publish (the relay's limit)
+const RELAY = 'https://kugel-store.kampfguy.workers.dev';   // free Cloudflare Worker that holds big submissions (no GitHub token)
 const MAX_URL = 7500;                    // GitHub rejects very long prefilled URLs; above this the code goes to the clipboard
 const fileOk = (n) => n === 'index.json' || /^entries\/[a-z0-9][a-z0-9_-]{0,47}\.ks$/.test(n);
 const str = (v, n) => String(v === undefined || v === null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f]/g, '').slice(0, n);
@@ -31,7 +33,7 @@ async function get(name, opts) {
   const base = opts.base || process.env.KOMPASS_STORE_URL || RAW;
   const fetchFn = opts.fetch || globalThis.fetch;
   try {
-    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), opts.timeoutMs || 8000);
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), opts.timeoutMs || (name.endsWith('.ks') ? 45000 : 15000));
     const r = await fetchFn(base + '/' + name + '?t=' + Date.now(), { signal: ctl.signal, redirect: 'error' }); clearTimeout(t);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const text = await r.text(); if (text.length > MAX_BYTES) throw new Error('too big');
@@ -56,4 +58,34 @@ function publishUrl(p) {
   if (full.length <= MAX_URL) return { url: full, copied: false };
   return { url: mk(head + '```kampfscript\n(The code was copied to your clipboard by Kompass — click here and press Ctrl+V)\n```\n\nSubmitted from Kompass ' + (p.version || '') + '.'), copied: true };
 }
-module.exports = { REPO, RAW, get, index, cleanIndex, publishUrl, fileOk, MAX_URL };
+// publish(): small code -> prefilled issue with the code inline. Bigger code -> uploaded to the relay first and the
+// issue just links to it (+ sha256); the kugel-store GitHub Action then copies it into the repo. If the relay can't be
+// reached, fall back to the clipboard flow.
+async function publish(p, opts) {
+  opts = opts || {};
+  const code = String(p.code || '');
+  const bytes = Buffer.byteLength(code);
+  if (bytes > MAX_CODE) return { ok: false, error: 'Your program is ' + (bytes / 1048576).toFixed(1) + ' MB — the store limit is 2 MB' };
+  const small = publishUrl(p);
+  if (!small.copied) return Object.assign({ ok: true, mode: 'inline', bytes }, small);
+  const relay = opts.relay || process.env.KOMPASS_STORE_RELAY || RELAY, fetchFn = opts.fetch || globalThis.fetch;
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), opts.timeoutMs || 60000);
+    const r = await fetchFn(relay + '/submit', { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: str(p.title, 60), author: str(p.author, 40), description: str(p.description, 240), code }) });
+    clearTimeout(t);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok || !/^https:\/\/[^\s]+\.ks$/.test(j.url || '')) throw new Error(j.error || ('HTTP ' + r.status));
+    return Object.assign({ ok: true, mode: 'link', bytes, codeUrl: j.url, sha256: j.sha256, copied: false }, { url: linkUrl(p, j.url, j.sha256, bytes) });
+  } catch (e) {
+    return Object.assign({ ok: true, mode: 'clipboard', bytes, warn: 'Upload failed (' + e.message + ') — code copied to the clipboard instead' }, small);
+  }
+}
+function linkUrl(p, codeUrl, sha, bytes) {
+  const title = str(p.title, 60).trim() || 'My KampfScript program', desc = str(p.description, 240).trim(), author = str(p.author, 40).trim();
+  const body = '### Title\n' + title + '\n\n### Author\n' + (author || '(your name)') + '\n\n### Description\n' + (desc || '(what is it?)') +
+    '\n\n### Code\n' + codeUrl + '\n\n' + (bytes / 1024).toFixed(1) + ' KB, ' + (String(p.code || '').split('\n').length) + ' lines · sha256: ' + sha +
+    '\n\n(Uploaded by Kompass ' + (p.version || '') + ' — the Kugel Store bot saves it into the repo when you submit this issue.)';
+  return 'https://github.com/' + REPO + '/issues/new?labels=submission&title=' + encodeURIComponent('[Submit] ' + title) + '&body=' + encodeURIComponent(body);
+}
+module.exports = { REPO, RAW, RELAY, get, index, cleanIndex, publishUrl, publish, linkUrl, fileOk, MAX_URL, MAX_CODE, MAX_BYTES };

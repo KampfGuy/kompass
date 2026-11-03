@@ -211,8 +211,10 @@ ipcMain.handle('kompass:store-code', async (_e, id) => {
   const r = await store.get('entries/' + String(id) + '.ks', { bundled: STORE_RES }); return r.ok ? { ok: true, code: r.text, source: r.source } : r;
 });
 ipcMain.handle('kompass:store-publish', async (_e, p) => {
-  const r = store.publishUrl(Object.assign({}, p || {}, { version: app.getVersion() }));
+  const r = await store.publish(Object.assign({}, p || {}, { version: app.getVersion() }));
+  if (!r.ok) return r;
   if (r.copied) clipboard.writeText(String((p && p.code) || ''));
+  if (process.env.KOMPASS_PUBLISH_LOG) fs.appendFileSync(process.env.KOMPASS_PUBLISH_LOG, JSON.stringify(Object.assign({}, r, { url: r.url.slice(0, 4000) })) + '\n');
   if (!process.env.KOMPASS_NO_EXTERNAL) shell.openExternal(r.url);   // the user's own browser; GitHub sign-in happens there
   return r;
 });
@@ -579,6 +581,34 @@ if (process.env.KOMPASS_SHOTS15) {
       await js(`window.__ksPublishDraft={title:'Bouncy Ball 2',code:'let c = canvas(body())\\ndraw_clear(c, "#123")'}`);
       await go('kompass://store/publish'); await wait(1200); await shot('publish.png');
     } catch (e) { console.log('[shots15] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.5.1 big-program self-test: KOMPASS_SHOTS151=/out/dir (+ KOMPASS_STORE_URL with a bigpack entry, KOMPASS_BIG_FILE)
+if (process.env.KOMPASS_SHOTS151) {
+  const out = process.env.KOMPASS_SHOTS151;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[shots151] wrote', name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots151] PAGE-ERROR', msg); });
+    try {
+      await wait(3500);
+      let t0 = Date.now(); await go('kompass://store/bigpack');
+      for (let i = 0; i < 60 && !(await js(`!!document.querySelector('.ks-tabview:not([hidden]) .app-stage canvas')`)); i++) await wait(250);
+      await wait(1500); console.log('[shots151] bigpack loaded+started in', Date.now() - t0, 'ms; errors:', await js(`[...document.querySelectorAll('.custom-error')].map(e=>e.innerText).join(';')`));
+      await shot('kompass151-store-play-bigpack.png');
+      const big = fs.readFileSync(process.env.KOMPASS_BIG_FILE, 'utf8');
+      await js(`window.__ksPublishDraft={title:'Big Level Pack',code:${JSON.stringify(big)}}`);
+      await go('kompass://store/publish'); await wait(1500);
+      await js(`(()=>{const i=[...document.querySelectorAll('.store-in')];i[1].value='KampfGuy';i[2].value='460 generated levels — a 300 KB+ store test';})()`);
+      await js(`[...document.querySelectorAll('.ks-button')].find(b=>b.offsetParent&&b.textContent.trim()==='🌍 Publish').click()`);
+      for (let i = 0; i < 80 && !/✔|✖/.test(await js(`document.querySelector('.store-msg').textContent`)); i++) await wait(250);
+      console.log('[shots151] publish message:', await js(`document.querySelector('.store-msg').textContent`));
+      await shot('kompass151-publish-big.png');
+    } catch (e) { console.log('[shots151] error', e && e.stack || e); }
     app.quit();
   });
 }

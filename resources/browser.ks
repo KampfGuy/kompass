@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.5.0"
+let VERSION = "1.5.1"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -1386,7 +1386,7 @@ fn page_publish(id, page) {
   if d == nil { d = {title: "", code: ""} }
   let c = col(page, "store-page")
   heading(c, "🌍 Publish to the Kugel Store", "store-title")
-  label(c, "Kompass opens a ready-made GitHub page in your browser with your code in it. Sign in to GitHub there (free) and press “Submit new issue”. After a quick review it shows up in kompass://store for everyone. Kompass never needs or stores a password or token.", "store-help")
+  label(c, "Kompass opens a ready-made GitHub page in your browser with your code in it (big programs, up to 2 MB, are uploaded automatically and linked). Sign in to GitHub there (free) and press “Submit new issue”. After a quick review it shows up in kompass://store for everyone. Kompass never needs or stores a password or token.", "store-help")
   let f = col(c, "store-form")
   label(f, "Title", "store-lbl")
   let t = textbox(f, "My cool game", nil, "store-in")
@@ -1406,8 +1406,11 @@ fn page_publish(id, page) {
     if trim(src) == "" { settext(msg, "Paste or write some KampfScript first"); return }
     settings.store_author = trim(gettext(a))
     save_settings()
+    settext(msg, "Publishing… (" + str(round(len(src) / 1024)) + " KB)")
     let r = store_publish(trim(gettext(t)), trim(gettext(ds)), trim(gettext(a)), src)
-    if r.copied { settext(msg, "✔ Opened GitHub in your browser. Your code is big, so it was copied — click in the Code box there and press Ctrl+V, then Submit.") }
+    if not r.ok { settext(msg, "✖ " + r.error); return }
+    if r.mode == "link" { settext(msg, "✔ Uploaded your " + str(round(r.bytes / 1024)) + " KB program and opened GitHub in your browser — just press “Submit new issue”.") }
+    else if r.mode == "clipboard" { settext(msg, "✔ Opened GitHub in your browser. " + r.warn + " — click in the Code box there and press Ctrl+V, then Submit.") }
     else { settext(msg, "✔ Opened GitHub in your browser with everything filled in — just press “Submit new issue”.") }
   }, "pill")
   button(r_, "‹ Back to the store", fn() { go("kompass://store") }, "pill ghost")

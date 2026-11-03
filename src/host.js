@@ -394,7 +394,7 @@
           sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
         };
         el(stage, 'run_page()').replaceChildren();
-        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, storeNs: ns ? String(S(ns)).replace(/[^a-z0-9_-]/gi, '').slice(0, 48) + '/' : '', onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
+        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 5000000, storeNs: ns ? String(S(ns)).replace(/[^a-z0-9_-]/gi, '').slice(0, 48) + '/' : '', onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
         try { const r = await R.run(() => sb.run(S(code))); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
         catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
       }, 2, 4),
