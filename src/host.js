@@ -55,9 +55,11 @@
     return [p, val];
   }
 
+  const R = window.KompassRender.createRenderer();
+  window.__ksRender = R;
   function makeRuntime(opts) {
     let interp;
-    const cb = (f, label) => (...args) => interp.invoke(f, args.map(toK), label);
+    const cb = (f, label) => (...args) => R.run(() => interp.invoke(f, args.map(toK), label));
     const HEX = /^#[0-9a-fA-F]{3,8}$/;
     const THEMES = ['brass', 'midnight', 'neon', 'paper'];
     const isFn = (f) => f && (f instanceof K.KFunc || f instanceof K.KBuiltin);
@@ -65,7 +67,7 @@
     const el = (x, who) => { if (!(x instanceof KHandle) || !x.el) throw new KError(who + ' needs a UI element, got ' + K.typeOf(x)); return x.el; };
     const make = (kind, tag, cls, parent, who) => {
       const e = document.createElement(tag); if (cls) e.className = cls;
-      el(parent, who).appendChild(e); return new KHandle(kind, e);
+      R.target(el(parent, who)).appendChild(e); const h = new KHandle(kind, e); R.track(e, h); return h;
     };
     // v1.3: a page's timers / frame loops / key handlers stop by themselves once its stage leaves the screen
     const rootEl = () => opts.rootHandle && opts.rootHandle.el;
@@ -73,7 +75,7 @@
     const visible = () => { const r = rootEl(); return !r || !r.getClientRects || r.getClientRects().length > 0; };
     const frames = new Map(); let frameIds = 1;
     const col = (c, who) => { const v = S(c); if (!COLOR.test(v)) throw new KError(who + ': color must be like "#ff4500", "rgba(0,0,0,0.5)" or a name like "white"'); return v; };
-    const cv = (x, who) => { if (!(x instanceof KHandle) || x.kind !== 'canvas') throw new KError(who + ' needs a canvas from canvas(parent), got ' + K.typeOf(x)); return x; };
+    const cv = (x, who) => { if (!(x instanceof KHandle) || x.kind !== 'canvas') throw new KError(who + ' needs a canvas from canvas(parent), got ' + K.typeOf(x)); R.touched(x); return x; };
     const N = (v, who, d) => { if (v === undefined || v === null) { if (d !== undefined) return d; throw new KError(who + ': missing a number'); } if (typeof v !== 'number' || !isFinite(v)) { if (typeof v === 'number') return 0; throw new KError(who + ': expected a number, got ' + K.typeOf(v)); } return v; };
     const pts = (l, who) => { if (!Array.isArray(l)) throw new KError(who + ' needs a list of points like [[x, y], ...] or [vec(x, y), ...]'); return l.map(p => Array.isArray(p) ? [+p[0] || 0, +p[1] || 0] : p instanceof KMap ? [+p.m.get('x') || 0, +p.m.get('y') || 0] : [0, 0]); };
     // a color can also be a LIST: ["#333", "#999", "#333"] = left-to-right gradient, ["down", c1, c2] = top-to-bottom
@@ -89,7 +91,7 @@
     const fitCanvas = (h) => {
       const c = h.el, r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
       const w = Math.max(1, Math.round((h.fixedW || r.width) * dpr)), hh = Math.max(1, Math.round((h.fixedH || r.height) * dpr));
-      if (c.width !== w || c.height !== hh) { c.width = w; c.height = hh; }
+      R.sizeBack(h, w, hh);   // only the back buffer; the visible canvas is resized at commit, together with the redraw
       h.w = w / dpr; h.h = hh / dpr; h.g.setTransform(dpr, 0, 0, dpr, 0, 0); h.depth = 0;
     };
     const ui = {
@@ -132,7 +134,7 @@
       gettext: B(([x]) => { if (x && x.kind === 'secret') throw new KError('gettext(): password fields are private'); const e = el(x, 'gettext()'); return x.kind === 'textbox' ? e.value : e.textContent; }, 1, 1),
       settip: B(([x, t]) => { el(x, 'settip()').title = S(t); return null; }, 2, 2),
       setimage: B(([x, url]) => { const e = el(x, 'setimage()'); const u = url ? S(url) : ''; e.style.visibility = ''; if (/^(https?:|data:image\/)/.test(u)) e.src = u; else e.removeAttribute('src'); return null; }, 2, 2),
-      clear: B(([x]) => { el(x, 'clear()').replaceChildren(); return null; }, 1, 1),
+      clear: B(([x]) => { R.clear(el(x, 'clear()')); return null; }, 1, 1),
       destroy: B(([x]) => { el(x, 'destroy()').remove(); return null; }, 1, 1),
       addstyle: B(([x, s]) => { addCls(el(x, 'addstyle()'), S(s)); return null; }, 2, 2),
       removestyle: B(([x, s]) => { el(x, 'removestyle()').classList.remove(styleOk(S(s))); return null; }, 2, 2),
@@ -180,11 +182,11 @@
       // ---- v1.3 canvas drawing (2D). Coordinates are CSS pixels, (0,0) = top-left, angles in radians.
       canvas: B(([p, w, h, s]) => {
         const k = make('canvas', 'canvas', 'ks-canvas', p, 'canvas()'); if (s) addCls(k.el, S(s));
-        k.g = k.el.getContext('2d'); k.fixedW = typeof w === 'number' ? w : 0; k.fixedH = typeof h === 'number' ? h : 0;
+        R.setupCanvas(k); k.fixedW = typeof w === 'number' ? w : 0; k.fixedH = typeof h === 'number' ? h : 0;
         if (k.fixedW) k.el.style.width = k.fixedW + 'px'; if (k.fixedH) k.el.style.height = k.fixedH + 'px';
         if (!k.fixedW || !k.fixedH) k.el.classList.add('fill');
         k.el.addEventListener('contextmenu', (e) => e.preventDefault());
-        fitCanvas(k); requestAnimationFrame(() => fitCanvas(k));
+        fitCanvas(k); R.touched(k); requestAnimationFrame(() => { const b = k.back.width + 'x' + k.back.height; fitCanvas(k); if (b !== k.back.width + 'x' + k.back.height) R.touched(k); });
         return k;
       }, 1, 4),
       canvas_size: B(([c]) => { const h = cv(c, 'canvas_size()'); return toK({ w: h.w, h: h.h }); }, 1, 1),
@@ -224,7 +226,7 @@
           requestAnimationFrame(loop);
           const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60; last = now;
           if (busy || !visible()) return; busy = true;
-          Promise.resolve(interp.invoke(f, [dt], 'frame')).finally(() => { busy = false; });
+          Promise.resolve(R.run(() => interp.invoke(f, [dt], 'frame'))).finally(() => { busy = false; });
         };
         frames.set(id, true); requestAnimationFrame(loop); return id;
       }, 1, 1),
@@ -261,8 +263,8 @@
       getvalue: B(([x]) => { const e = el(x, 'getvalue()'); if (x.kind === 'secret') throw new KError('getvalue(): password fields are private'); if (x.kind === 'checkbox') return x.input.checked; if (x.kind === 'slider') return +e.value; if (x.kind === 'textbox' || x.kind === 'dropdown') return e.value; return e.textContent; }, 1, 1),
       setvalue: B(([x, v]) => { const e = el(x, 'setvalue()'); if (x.kind === 'secret') throw new KError('setvalue(): password fields are private'); if (x.kind === 'checkbox') x.input.checked = K.truthy(v); else if (x.kind === 'slider' || x.kind === 'textbox' || x.kind === 'dropdown') e.value = S(v); else e.textContent = S(v); return null; }, 2, 2),
       // ---- v1.3 small key/value storage that survives restarts (per Kompass profile, JSON values, 200 KB each)
-      store_get: B(([k, d]) => { try { const v = localStorage.getItem('ks-store:' + S(k)); return v === null ? (d === undefined ? null : d) : toK(JSON.parse(v)); } catch (e) { return d === undefined ? null : d; } }, 1, 2),
-      store_set: B(([k, v]) => { const j = JSON.stringify(toJS(v)); if (j.length > 200000) throw new KError('store_set(): value too big (max 200 KB)'); localStorage.setItem('ks-store:' + S(k), j); return true; }, 2, 2),
+      store_get: B(([k, d]) => { try { const v = localStorage.getItem('ks-store:' + (opts.storeNs || '') + S(k)); return v === null ? (d === undefined ? null : d) : toK(JSON.parse(v)); } catch (e) { return d === undefined ? null : d; } }, 1, 2),
+      store_set: B(([k, v]) => { const j = JSON.stringify(toJS(v)); if (j.length > 200000) throw new KError('store_set(): value too big (max 200 KB)'); localStorage.setItem('ks-store:' + (opts.storeNs || '') + S(k), j); return true; }, 2, 2),
       print: B((a) => { opts.onPrint(a.map(S).join(' ')); return null; }, 0),
     };
 
@@ -371,14 +373,19 @@
       videos_folder: B(() => window.native.videosFolder(), 0, 0),
       open_videos_folder: B(() => { window.native.openVideosFolder(); return null; }, 0, 0),
       read_script: B(([n]) => { const f = S(n).replace(/\.ks$/, ''); if (!/^[A-Za-z0-9_-]{1,40}$/.test(f)) return ''; return window.native.readScript(f + '.ks') || ''; }, 1, 1),
+      // 1.5 Kugel Store (catalog = public GitHub repo; code always runs through run_page = sandbox)
+      store_index: B(async () => toK(await window.native.store.index()), 0, 0),
+      store_code: B(async ([id]) => toK(await window.native.store.code(S(id))), 1, 1),
+      store_publish: B(async ([t, d, a, code]) => toK(await window.native.store.publish({ title: S(t), description: S(d), author: S(a), code: S(code) })), 4, 4),
+      publish_draft: B(() => { const d = window.__ksPublishDraft || null; window.__ksPublishDraft = null; return toK(d); }, 0, 0),
       read_resource: B(([n]) => window.native.readResource(S(n)), 1, 1),
       copy_text: B(([t]) => { window.native.copyText(S(t)); return true; }, 1, 1),
       save_text_file: B(async ([name, t]) => (await window.native.saveTextFile(S(name), S(t))) || '', 2, 2),
       // Run a user's KampfScript page (kompass://builder, custom home page) in an isolated interpreter that can
       // draw into `stage` and use the page API (search / lucky / open_url / engine) wired to browser.ks handlers.
-      run_page: B(async ([code, stage, handlers]) => {
+      run_page: B(async ([code, stage, handlers, ns]) => {
         const out = []; const hs = handlers instanceof KMap ? handlers : new KMap();
-        const call = (k, args) => { const f = hs.m.get(k); if (isFn(f)) interp.invoke(f, args, 'page: ' + k); return null; };
+        const call = (k, args) => { const f = hs.m.get(k); if (isFn(f)) R.run(() => interp.invoke(f, args, 'page: ' + k)); return null; };
         const extra = {
           search: B(([q]) => call('search', [S(q)]), 1, 1),
           lucky: B(([q]) => call('lucky', [S(q)]), 1, 1),
@@ -387,10 +394,10 @@
           sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
         };
         el(stage, 'run_page()').replaceChildren();
-        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
-        try { const r = await sb.run(S(code)); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
+        const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, storeNs: ns ? String(S(ns)).replace(/[^a-z0-9_-]/gi, '').slice(0, 48) + '/' : '', onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
+        try { const r = await R.run(() => sb.run(S(code))); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
         catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
-      }, 2, 3),
+      }, 2, 4),
       // ---- password manager. Passwords stay in the main process / host DOM: KampfScript only ever gets
       // site, username and opaque 'secret' handles (gettext/settext refuse them).
       pw_status: B(() => toK(window.native.pw.status()), 0, 0),
@@ -420,7 +427,7 @@
         let sb;
         if (stage instanceof KHandle) { el(stage, 'run_sandbox()').replaceChildren(); sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); }, onError: (e) => out.push('✖ ' + e.message), extra }); }
         else sb = new K.Interpreter({ maxSteps: 200000, onPrint: (x) => { if (out.length < 500) out.push(x); }, builtins: extra });
-        try { const r = await sb.run(S(code)); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
+        try { const r = await R.run(() => sb.run(S(code))); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
         catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
       }, 1, 2),
     };
@@ -428,7 +435,7 @@
     const sandboxUi = () => { const o = Object.assign({}, ui); for (const k of ['on_key', 'set_window_title', 'set_theme', 'set_accent', 'confirm', 'every']) delete o[k]; return o; };  // every_ms/on_frame stay: they stop with the page
     const keyHandlers = new Map();
     interp = new K.Interpreter({
-      maxSteps: opts.maxSteps || 2000000, yieldEvery: 3000, hooks: opts.hooks || null,
+      maxSteps: opts.maxSteps || 2000000, yieldEvery: 3000, atomicMs: 50, hooks: opts.hooks || null,
       onPrint: opts.onPrint, onError: opts.onError,
       builtins: opts.sandbox ? Object.assign(sandboxUi(), opts.extra || {}) : Object.assign({}, ui, opts.withBrowser ? browser : {}, services, opts.extra || {}),
     });
@@ -460,10 +467,10 @@
   window.KompassRuntime = { makeRuntime, toK, toJS };
   function handleKey(k, ev) {
     if (k === 'ctrl+shift+k') { if (ev) ev.preventDefault(); window.KompassEditor.toggle(); return; }
-    const f = main.keyHandlers.get(k); if (f) { if (ev) ev.preventDefault(); main.invoke(f, [], 'key: ' + k); }
+    const f = main.keyHandlers.get(k); if (f) { if (ev) ev.preventDefault(); R.run(() => main.invoke(f, [], 'key: ' + k)); }
   }
   window.addEventListener('keydown', (e) => handleKey(keyName(e), e));
   window.native.onKey((k) => handleKey(k));
   window.native.onOpenTab((u) => main.openTabFromPage(u));
-  main.run(window.native.browserSource()).catch((e) => { showError(e.message); if (window.KompassDevtools) window.KompassDevtools.error(e); });
+  R.run(() => main.run(window.native.browserSource())).catch((e) => { showError(e.message); if (window.KompassDevtools) window.KompassDevtools.error(e); });
 })();

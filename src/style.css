@@ -384,3 +384,24 @@ body[data-theme="midnight"] .try-code { color:#d6e2ff; } body[data-theme="neon"]
 .upd-icon { font-weight:700; color:var(--acc); }
 .upd-text { flex:1; }
 .upd-info { margin-left:8px; }
+/* 1.5 Kugel Store */
+.store-page { max-width: 1100px; margin: 0 auto; padding: 28px 32px; gap: 14px; }
+.store-head { align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.store-title { font-size: 30px; margin: 0; }
+.store-acts { gap: 10px; align-items: center; flex-wrap: wrap; }
+.store-search { min-width: 240px; }
+.store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.store-card { background: var(--card2); border: 1px solid var(--line, #333); border-radius: 14px; padding: 18px; gap: 6px; }
+.store-icon { font-size: 34px; }
+.store-name { font-size: 17px; font-weight: 700; }
+.store-author { font-size: 12px; opacity: .7; }
+.store-desc { font-size: 13px; line-height: 1.45; min-height: 38px; opacity: .9; }
+.store-play { align-self: flex-start; margin-top: 6px; }
+.store-back { position: absolute; top: 8px; right: 12px; z-index: 50; background: rgba(0,0,0,.6); color: #fff; padding: 4px 10px; border-radius: 10px; font-size: 12px; text-decoration: none; }
+.store-help { max-width: 760px; line-height: 1.5; opacity: .85; }
+.store-form { gap: 6px; max-width: 760px; }
+.store-lbl { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.store-in { width: 100%; }
+.store-code { min-height: 200px; font-family: 'Kompass Mono', monospace; }
+.store-msg { min-height: 20px; color: var(--accent, #c9a227); }
+.store-grid { align-items: stretch !important; }

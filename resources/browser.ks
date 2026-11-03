@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.4.0"
+let VERSION = "1.5.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -360,6 +360,7 @@ fn page_default_home(id, page) {
   quick_link(tiles, "⟲", "History", "kompass://history")
   let feats = row(c, "features")
   feature_card(feats, "G", "Make Google page with KS", "Build your own search home page", fn() { go("kompass://builder") })
+  feature_card(feats, "🛒", "Kugel Store", "Play games & apps people made", fn() { go("kompass://store") })
   feature_card(feats, "📘", "Learn KampfScript", "Lessons, videos & exercises", fn() { go("kompass://learn") })
   feature_card(feats, "⚙", "Settings", "Themes, search, privacy", fn() { go("kompass://settings") })
   feature_card(feats, "⚡", "Editor", "Write & run .ks scripts", fn() { open_editor() })
@@ -1026,6 +1027,12 @@ fn page_builder(id, page) {
     draw_mine()
     say("⌂ \"" + cur.name + "\" is now your home page (new tabs, ⌂ and start-up)")
   }, "pill gp-home-btn")
+  button(acts, "🌍 Publish", fn() {
+    if not store() { return }
+    if not run_preview() { say("Fix the error first — published pages must run cleanly"); return }
+    pub_draft = {title: cur.name, code: cur.code}
+    go("kompass://store/publish")
+  }, "pill ghost")
   button(acts, "↺ Restore default", fn() { restore_default_home(); draw_mine(); say("Home page is the default Kompass start page again") }, "pill ghost")
 
   label(presets, "Templates:", "bld-row-label")
@@ -1084,6 +1091,9 @@ fn render_internal(id, url) {
   else if where == "builder" { page_builder(id, page) }
   else if where == "passwords" { page_passwords(id, page) }
   else if startswith(where, "page/") { page_user(id, page, slice(where, 5)) }
+  else if where == "store" { page_store(id, page) }
+  else if where == "store/publish" { page_publish(id, page) }
+  else if startswith(where, "store/") { page_store_play(id, page, slice(where, 6)) }
   else if where == "spaceflight" { page_example(id, page, "spaceflight", "Spaceflight Sim") }
   else if where == "script" { if tabs[str(id)].title == "New tab" { set_tab_title(id, "Script page") } }
   else {
@@ -1303,6 +1313,104 @@ fn page_example(id, page, name, title) {
     let warn = row(page, "custom-error")
     label(warn, "kompass://" + name + ": " + r.error, "out-err")
   }
+}
+
+# ---------------------------------------------------------- 🛒 kompass://store — the Kugel Store
+# The catalog is the public GitHub repo KampfGuy/kugel-store (index.json + entries/<id>.ks).
+# Every entry runs with run_page(): an isolated sandbox interpreter that can only draw into its stage.
+let pub_draft = nil
+fn page_store(id, page) {
+  set_tab_title(id, "Kugel Store")
+  let c = col(page, "store-page")
+  let head = row(c, "store-head")
+  heading(head, "🛒 Kugel Store", "store-title")
+  label(head, "Games & apps made with KampfScript — every one runs in a sandbox", "muted")
+  let acts = row(c, "store-acts")
+  button(acts, "🌍 Publish yours", fn() { go("kompass://store/publish") }, "pill")
+  button(acts, "G Make one in the builder", fn() { go("kompass://builder") }, "pill ghost")
+  let find_ = textbox(acts, "Search the store", nil, "store-search")
+  let info = label(c, "Loading the store…", "muted")
+  let grid = row(c, "store-grid")
+  let items = []
+  fn draw(q) {
+    clear(grid)
+    let n = 0
+    for e in items {
+      let hay = lower(e.title + " " + e.author + " " + e.description + " " + join(e.tags, " "))
+      if q != "" and not contains(hay, lower(q)) { continue }
+      n += 1
+      let ee = e
+      let card = col(grid, "store-card")
+      label(card, e.icon, "store-icon")
+      label(card, e.title, "store-name")
+      label(card, "by " + e.author, "store-author")
+      label(card, e.description, "store-desc")
+      button(card, "▶ Play", fn() { go("kompass://store/" + ee.id) }, "pill store-play")
+    }
+    if n == 0 { label(grid, "Nothing found", "muted") }
+  }
+  on_input(find_, fn(t) { draw(trim(t)) }, 150)
+  let r = store_index()
+  if not r.ok { settext(info, "✖ " + r.error); return }
+  items = r.entries
+  let src_note = ""
+  if r.source != "online" { src_note = " (offline copy — could not reach GitHub)" }
+  settext(info, str(len(items)) + " programs" + src_note)
+  draw("")
+}
+
+fn page_store_play(id, page, sid) {
+  set_tab_title(id, "Kugel Store: " + sid)
+  let r = store_code(sid)
+  if not r.ok {
+    let c = col(page, "list-page")
+    heading(c, "Could not load " + sid, "page-title")
+    label(c, r.error, "out-err")
+    link(c, "‹ Back to the store", fn() { go("kompass://store") })
+    return
+  }
+  let stage = box(page, "app-stage")
+  let back = link(page, "‹ Store", fn() { go("kompass://store") }, "store-back")
+  let res = run_page(r.code, stage, page_handlers(id, false), "store-" + sid)
+  if not res.ok {
+    let warn = row(page, "custom-error")
+    label(warn, sid + ": " + res.error, "out-err")
+  }
+}
+
+fn page_publish(id, page) {
+  set_tab_title(id, "Publish to the Kugel Store")
+  let d = publish_draft()
+  if d == nil { d = pub_draft }
+  pub_draft = nil
+  if d == nil { d = {title: "", code: ""} }
+  let c = col(page, "store-page")
+  heading(c, "🌍 Publish to the Kugel Store", "store-title")
+  label(c, "Kompass opens a ready-made GitHub page in your browser with your code in it. Sign in to GitHub there (free) and press “Submit new issue”. After a quick review it shows up in kompass://store for everyone. Kompass never needs or stores a password or token.", "store-help")
+  let f = col(c, "store-form")
+  label(f, "Title", "store-lbl")
+  let t = textbox(f, "My cool game", nil, "store-in")
+  settext(t, d.title)
+  label(f, "Your name (shown on the card)", "store-lbl")
+  let a = textbox(f, "KampfFan", nil, "store-in")
+  if settings.store_author != nil { settext(a, settings.store_author) }
+  label(f, "Description", "store-lbl")
+  let ds = textbox(f, "What is it? How do you play?", nil, "store-in")
+  label(f, "KampfScript code", "store-lbl")
+  let code = codebox(f, d.code, "store-code")
+  let msg = label(f, "", "store-msg")
+  let r_ = row(f)
+  button(r_, "🌍 Publish", fn() {
+    let src = gettext(code)
+    if trim(gettext(t)) == "" { settext(msg, "Give it a title first"); return }
+    if trim(src) == "" { settext(msg, "Paste or write some KampfScript first"); return }
+    settings.store_author = trim(gettext(a))
+    save_settings()
+    let r = store_publish(trim(gettext(t)), trim(gettext(ds)), trim(gettext(a)), src)
+    if r.copied { settext(msg, "✔ Opened GitHub in your browser. Your code is big, so it was copied — click in the Code box there and press Ctrl+V, then Submit.") }
+    else { settext(msg, "✔ Opened GitHub in your browser with everything filled in — just press “Submit new issue”.") }
+  }, "pill")
+  button(r_, "‹ Back to the store", fn() { go("kompass://store") }, "pill ghost")
 }
 
 # ---------------------------------------------------------- pages made by ⚡ editor scripts

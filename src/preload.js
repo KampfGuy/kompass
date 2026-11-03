@@ -26,6 +26,11 @@ contextBridge.exposeInMainWorld('native', {
   readResource: (n) => ipcRenderer.sendSync('kompass:read-resource', n),
   copyText: (t) => ipcRenderer.sendSync('kompass:copy-text', t),
   saveTextFile: (n, t) => ipcRenderer.invoke('kompass:save-text-file', n, t),
+  store: {
+    index: () => ipcRenderer.invoke('kompass:store-index'),
+    code: (id) => ipcRenderer.invoke('kompass:store-code', id),
+    publish: (p) => ipcRenderer.invoke('kompass:store-publish', p),
+  },
   pw: {
     status: () => ipcRenderer.sendSync('kompass:pw-status'),
     unlock: (m) => ipcRenderer.sendSync('kompass:pw-unlock', m),

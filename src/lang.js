@@ -387,6 +387,8 @@
       this.maxSteps = opts.maxSteps || 20000;
       this.stepsPerCoin = opts.stepsPerCoin || 1000;
       this.yieldEvery = opts.yieldEvery || 1500;
+      // 1.5: callbacks run without yielding to the event loop for up to atomicMs, so the screen never paints a half-done update
+      this.atomicMs = opts.atomicMs || 0; this.atomicUntil = 0;
       this.steps = 0; this.totalSteps = 0; this.coinsSpent = 0;
       this.depth = 0; this.stopped = false;
       // Debug hooks (used by Kompass KampfScript DevTools). All optional, zero cost when null:
@@ -404,6 +406,7 @@
         this.globals.define(k, b instanceof KBuiltin ? b : new KBuiltin(k, b.fn, b.min, b.max));
       }
     }
+    beginAtomic() { if (this.atomicMs) this.atomicUntil = Math.max(this.atomicUntil, Date.now() + this.atomicMs); }
     stop() { this.stopped = true; }
     print(s) { (this.opts.onPrint || console.log)(s); }
     charge(n, line, reason) {
@@ -418,11 +421,11 @@
       if (this.stopped) throw new KError('Program stopped.', line);
       if (this.steps > this.maxSteps) { const e = new KError('Step limit reached (' + this.maxSteps + ' steps). Infinite loop? Buy more RAM in the Shop.', line); e.code = 'STEP_LIMIT'; throw e; }
       if (this.totalSteps % this.stepsPerCoin === 0) this.charge(1, line, 'cpu');
-      if (this.totalSteps % this.yieldEvery === 0) { if (this.opts.onMeter) this.opts.onMeter(this); await tick(); }
+      if (this.totalSteps % this.yieldEvery === 0) { if (this.opts.onMeter) this.opts.onMeter(this); if (!(this.atomicUntil && Date.now() < this.atomicUntil)) await tick(); }
     }
     async run(src) {
       const ast = parse(src);
-      this.steps = 0;
+      this.steps = 0; this.beginAtomic();
       if (this.opts.runCost) this.charge(this.opts.runCost, 0, 'run');
       await this.execBlock(ast.body, this.globals);
       return { steps: this.totalSteps, coins: this.coinsSpent };
@@ -430,7 +433,7 @@
     // Invoke a KampfScript function from outside (UI callbacks). Each callback gets a fresh step budget.
     async invoke(fn, args, label) {
       if (this.stopped) return null;
-      this.steps = 0;
+      this.steps = 0; this.beginAtomic();
       const h = this.hooks, t0 = h && h.invoke ? Date.now() : 0, s0 = this.totalSteps;
       let err = null;
       try { return await this.callValue(fn, args || [], 0); }

@@ -1,0 +1,7 @@
+{
+  "entries": [
+    { "id": "spaceflight", "icon": "🚀", "title": "Spaceflight Sim", "author": "KampfGuy (original by Rough_Capital1339 / CatPrinceHQ2)", "description": "Build rockets in the hangar, launch, reach orbit and land. The whole sim is written in KampfScript.", "tags": ["game", "space", "simulation"] },
+    { "id": "bouncy-ball", "icon": "🏀", "title": "Bouncy Ball", "author": "KampfGuy", "description": "Click to throw a glowing ball around. A tiny canvas + on_frame demo.", "tags": ["demo", "canvas"] },
+    { "id": "clicker", "icon": "🟠", "title": "Kugel Clicker", "author": "KampfGuy", "description": "Click the Kugel, buy upgrades. Your coins are saved.", "tags": ["game", "ui"] }
+  ]
+}

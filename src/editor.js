@@ -106,6 +106,12 @@ button(r, "Learn KampfScript", fn() { open_tab("kompass://learn") })
   });
   mk('↻ Save & restart browser', () => { if (current !== '@browser') { load('@browser'); log('Opened browser.ks — edit it, then press this again.', 'ed-info'); return; } if (save()) window.native.reloadApp(); });
   mk('⟲ Reset browser.ks', () => { if (confirm('Restore the original browser.ks?')) { window.native.saveBrowserSource(window.native.defaultSource()); window.native.reloadApp(); } });
+  mk('🌍 Publish', () => {   // 1.5: send this script to the Kugel Store (opens kompass://store/publish, prefilled)
+    if (current === '@browser') { log('browser.ks can not be published — open or write a script first', 'ed-err'); return; }
+    try { K.parse(area.value); } catch (e) { log('✖ Fix the syntax error first: ' + e.message, 'ed-err'); return; }
+    window.__ksPublishDraft = { title: (current || nameBox.value || 'My program').replace(/\.ks$/, ''), code: area.value };
+    window.KompassMain.repl('new_tab("kompass://store/publish")'); log('Opened kompass://store/publish — fill in the details and press Publish', 'ed-ok');
+  });
   mk('📁 Data folder', () => window.native.openFolder());
   mk('📘 Learn', () => window.KompassMain.openTabFromPage('kompass://learn'));
   mk('{ } DevTools', () => window.KompassDevtools && window.KompassDevtools.toggle(true));

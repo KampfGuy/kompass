@@ -204,6 +204,18 @@ ipcMain.on('kompass:read-resource', (e, n) => {
   const f = safeName(n); if (!/^[A-Za-z0-9_-]+\.(md|txt|ks)$/.test(f)) { e.returnValue = ''; return; }
   try { e.returnValue = fs.readFileSync(path.join(RES, f), 'utf8'); } catch (err) { e.returnValue = ''; }
 });
+const store = require('./store');
+const STORE_RES = path.join(RES, 'store');
+ipcMain.handle('kompass:store-index', async () => store.index({ bundled: STORE_RES }));
+ipcMain.handle('kompass:store-code', async (_e, id) => {
+  const r = await store.get('entries/' + String(id) + '.ks', { bundled: STORE_RES }); return r.ok ? { ok: true, code: r.text, source: r.source } : r;
+});
+ipcMain.handle('kompass:store-publish', async (_e, p) => {
+  const r = store.publishUrl(Object.assign({}, p || {}, { version: app.getVersion() }));
+  if (r.copied) clipboard.writeText(String((p && p.code) || ''));
+  if (!process.env.KOMPASS_NO_EXTERNAL) shell.openExternal(r.url);   // the user's own browser; GitHub sign-in happens there
+  return r;
+});
 ipcMain.on('kompass:copy-text', (e, t) => { clipboard.writeText(String(t)); e.returnValue = true; });
 ipcMain.handle('kompass:save-text-file', async (_e, name, text) => {
   const base = safeName(name || 'kompass.txt');
@@ -524,6 +536,49 @@ if (process.env.KOMPASS_SHOTS14) {
         await wait(3000);
       }
     } catch (e) { console.log('[shots14] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.5 screenshot self-test: KOMPASS_SHOTS15=/out/dir — flicker check + Kugel Store
+if (process.env.KOMPASS_SHOTS15) {
+  const out = process.env.KOMPASS_SHOTS15, pre = process.env.KOMPASS_SHOTS15_PREFIX || 'kompass15-';
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, pre + name), img.toPNG()); console.log('[shots15] wrote', pre + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  const S = ".ks-tabview:not([hidden]) .app-stage";
+  const click = (text, sel, root) => js(`(()=>{const b=[...document.querySelectorAll('${root || S} ${sel || '.ks-button'}')].find(b=>b.offsetParent&&b.textContent.trim()===${JSON.stringify(text)});if(b){b.click();return true}return false})()`);
+  // watch for 3 s: removed elements, frames where a visible list/HUD panel was empty, frames where the canvas centre was blank
+  const flicker = () => js(`new Promise(res=>{const st=document.querySelector('${S}');let removed=0,emptyFrames=0,blankFrames=0,frames=0;
+    const panels=[...st.querySelectorAll('.ks-col,.ks-box')].filter(e=>e.offsetParent&&e.children.length>0);
+    const mo=new MutationObserver(ms=>{for(const m of ms)removed+=m.removedNodes.length});mo.observe(st,{childList:true,subtree:true});
+    const cv=[...st.querySelectorAll('canvas')].filter(c=>c.offsetParent).sort((a,b)=>b.width*b.height-a.width*a.height)[0];const g=cv&&cv.getContext('2d');
+    const t0=performance.now();const f=()=>{frames++;if(panels.some(p=>p.isConnected&&p.children.length===0))emptyFrames++;
+      if(g){const d=g.getImageData(cv.width>>1,cv.height>>1,1,1).data;if(d[3]===0)blankFrames++;}
+      if(performance.now()-t0<3000)requestAnimationFrame(f);else{mo.disconnect();res({frames,removed,emptyFrames,blankFrames,panels:panels.length,commits:window.__ksRender.stats})}};requestAnimationFrame(f)})`);
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots15] PAGE-ERROR', msg); });
+    try {
+      await wait(3500);
+      await js(`localStorage.setItem('ks-store:sfs_rockets', JSON.stringify([{name:'Demo rocket',parts:[{id:'coneS',col:11,row:0,rot:0,uid:1},{id:'pod',col:11,row:2,rot:0,uid:2},{id:'chute',col:11,row:4,rot:0,uid:3},{id:'sepS',col:11,row:5,rot:0,uid:4},{id:'tankS',col:11,row:6,rot:0,uid:5},{id:'tankS',col:11,row:10,rot:0,uid:6},{id:'engB',col:11,row:14,rot:0,uid:7},{id:'srbT',col:9,row:11,rot:0,uid:8},{id:'srbT',col:13,row:11,rot:0,uid:9}]}]))`);
+      await go('kompass://spaceflight'); await wait(2500);
+      await click('New World'); await wait(500); await click('Create & Play'); await wait(1200);
+      await click('Demo rocket', '.ks-link'); await wait(800);
+      await click('Launch ▲'); await wait(1500); await click('LAUNCH ▲'); await wait(1500);
+      console.log('[shots15] flicker-during-flight', JSON.stringify(await flicker()));
+      await shot('spaceflight-flight.png');
+      await js(`(()=>{const b=[...document.querySelectorAll('${S} .ks-button')].filter(b=>b.offsetParent&&/^(ON|OFF)$/.test(b.textContent));if(b[0])b[0].click()})()`); await wait(400);
+      await shot('spaceflight-engine-toggle.png');
+      await go('kompass://store'); await wait(2500);
+      console.log('[shots15] store', JSON.stringify(await js(`[...document.querySelectorAll('.store-card .store-name')].map(e=>e.textContent)`)));
+      await shot('store.png');
+      await click('▶ Play', '.ks-button', '.ks-tabview:not([hidden])'); await wait(2500); await shot('store-play-spaceflight.png');
+      await go('kompass://store/bouncy-ball'); await wait(1500); await shot('store-play-bouncy.png');
+      await go('kompass://store/clicker'); await wait(1200); await click('🟠'); await click('🟠'); await wait(300); await shot('store-play-clicker.png');
+      await js(`window.__ksPublishDraft={title:'Bouncy Ball 2',code:'let c = canvas(body())\\ndraw_clear(c, "#123")'}`);
+      await go('kompass://store/publish'); await wait(1200); await shot('publish.png');
+    } catch (e) { console.log('[shots15] error', e && e.stack || e); }
     app.quit();
   });
 }
