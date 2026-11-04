@@ -612,3 +612,34 @@ if (process.env.KOMPASS_SHOTS151) {
     app.quit();
   });
 }
+
+// ---------------- store games self-test: KOMPASS_SHOTS_GAMES=/out/dir KOMPASS_GAMES=id,id,...
+if (process.env.KOMPASS_SHOTS_GAMES) {
+  const out = process.env.KOMPASS_SHOTS_GAMES, ids = String(process.env.KOMPASS_GAMES || '').split(',').filter(Boolean);
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  const key = (k, ms) => js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)}}));setTimeout(()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:${JSON.stringify(k)}})),${ms || 60})`);
+  const mouse = (type, fx, fy) => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) .app-stage canvas')].filter(c=>c.offsetParent).pop();if(!c)return;const r=c.getBoundingClientRect();c.dispatchEvent(new MouseEvent(${JSON.stringify(type)},{clientX:r.left+r.width*${fx},clientY:r.top+r.height*${fy},bubbles:true}))})()`);
+  let errs = [];
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) errs.push(msg); });
+    try {
+      await wait(3500);
+      await go('kompass://store'); await wait(2500);
+      console.log('[games] store cards', JSON.stringify(await js(`[...document.querySelectorAll('.store-card .store-name')].map(e=>e.textContent)`)));
+      const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, 'store-catalog.png'), img.toPNG());
+      for (const id of ids) {
+        errs = [];
+        await go('kompass://store/' + id); await wait(1500);
+        await mouse('mousemove', 0.5, 0.5); await key(' '); await mouse('mousedown', 0.6, 0.4); await mouse('mouseup', 0.6, 0.4); await key('Enter');
+        for (let i = 0; i < 12; i++) { await key(['ArrowUp', 'ArrowRight', ' ', 'ArrowDown', 'ArrowLeft', 'd', 'w'][i % 7], 120); await wait(150); if (i % 4 == 0) { await mouse('mousedown', 0.5, 0.5); await mouse('mouseup', 0.5, 0.5); } }
+        await wait(400);
+        const info = await js(`[...document.querySelectorAll('.custom-error')].map(e=>e.innerText).join(';')`);
+        const img2 = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, 'store-' + id + '.png'), img2.toPNG());
+        console.log('[games]', id, errs.length || info ? 'ERRORS ' + JSON.stringify([...new Set(errs)].slice(0, 3)) + ' ' + info : 'ok');
+      }
+    } catch (e) { console.log('[games] error', e && e.stack || e); }
+    app.quit();
+  });
+}

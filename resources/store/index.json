@@ -1,7 +1,144 @@
 {
   "entries": [
-    { "id": "spaceflight", "icon": "🚀", "title": "Spaceflight Sim", "author": "KampfGuy (original by Rough_Capital1339 / CatPrinceHQ2)", "description": "Build rockets in the hangar, launch, reach orbit and land. The whole sim is written in KampfScript.", "tags": ["game", "space", "simulation"] },
-    { "id": "bouncy-ball", "icon": "🏀", "title": "Bouncy Ball", "author": "KampfGuy", "description": "Click to throw a glowing ball around. A tiny canvas + on_frame demo.", "tags": ["demo", "canvas"] },
-    { "id": "clicker", "icon": "🟠", "title": "Kugel Clicker", "author": "KampfGuy", "description": "Click the Kugel, buy upgrades. Your coins are saved.", "tags": ["game", "ui"] }
+    {
+      "id": "spaceflight",
+      "icon": "🚀",
+      "title": "Spaceflight Sim",
+      "author": "KampfGuy (original by Rough_Capital1339 / CatPrinceHQ2)",
+      "description": "Build rockets in the hangar, launch, reach orbit and land. The whole sim is written in KampfScript.",
+      "tags": [
+        "game",
+        "space",
+        "simulation"
+      ]
+    },
+    {
+      "id": "bouncy-ball",
+      "icon": "🏀",
+      "title": "Bouncy Ball",
+      "author": "KampfGuy",
+      "description": "Click to throw a glowing ball around. A tiny canvas + on_frame demo.",
+      "tags": [
+        "demo",
+        "canvas"
+      ]
+    },
+    {
+      "id": "clicker",
+      "icon": "🟠",
+      "title": "Kugel Clicker",
+      "author": "KampfGuy",
+      "description": "Click the Kugel, buy upgrades. Your coins are saved.",
+      "tags": [
+        "game",
+        "ui"
+      ]
+    },
+    {
+      "id": "snake",
+      "icon": "🐍",
+      "title": "Kugel Snake",
+      "author": "KampfGuy",
+      "description": "Classic snake with glowing orbs, wrap-around walls and speed-up. Arrows / WASD, Space pause.",
+      "tags": [
+        "game",
+        "arcade",
+        "classic"
+      ]
+    },
+    {
+      "id": "flappy",
+      "icon": "🐦",
+      "title": "Flappy Kugel",
+      "author": "KampfGuy",
+      "description": "Flap through the pipes! Space, ↑ or click. How far can you get?",
+      "tags": [
+        "game",
+        "arcade"
+      ]
+    },
+    {
+      "id": "breakout",
+      "icon": "🧱",
+      "title": "Kugel Breakout",
+      "author": "KampfGuy",
+      "description": "Smash every brick with paddle and ball. Mouse or ← →, Space to launch. Levels get tougher.",
+      "tags": [
+        "game",
+        "arcade",
+        "classic"
+      ]
+    },
+    {
+      "id": "asteroids",
+      "icon": "☄️",
+      "title": "Kugel Asteroids",
+      "author": "KampfGuy",
+      "description": "Rotate, thrust and blast rocks that split apart. Waves keep coming.",
+      "tags": [
+        "game",
+        "space",
+        "shooter"
+      ]
+    },
+    {
+      "id": "2048",
+      "icon": "🔢",
+      "title": "2048",
+      "author": "KampfGuy",
+      "description": "Slide the tiles, merge equal numbers, reach 2048. Arrows / WASD.",
+      "tags": [
+        "game",
+        "puzzle"
+      ]
+    },
+    {
+      "id": "pong",
+      "icon": "🏓",
+      "title": "Pong vs AI",
+      "author": "KampfGuy",
+      "description": "You vs the computer, first to 7. W/S, arrows or mouse.",
+      "tags": [
+        "game",
+        "classic",
+        "sports"
+      ]
+    },
+    {
+      "id": "arena-shooter",
+      "icon": "🎯",
+      "title": "Arena Shooter",
+      "author": "Grok",
+      "description": "Top-down survival: WASD / arrows move, mouse aim, click or Space to shoot, R restart.",
+      "tags": [
+        "game",
+        "shooter",
+        "community"
+      ]
+    },
+    {
+      "id": "star-dodger",
+      "icon": "⭐",
+      "title": "Star Dodger",
+      "author": "Claude",
+      "description": "Arrows / WASD move, Space shoots. Survive, smash rocks, beat your best.",
+      "tags": [
+        "game",
+        "arcade",
+        "community"
+      ]
+    },
+    {
+      "id": "neon-dodge",
+      "icon": "💠",
+      "title": "NEON DODGE",
+      "author": "ChatGPT",
+      "description": "A tiny arcade survival game: dodge the red drones. WASD / arrows, R to restart.",
+      "tags": [
+        "game",
+        "arcade",
+        "community"
+      ]
+    }
   ]
 }
