@@ -57,4 +57,7 @@ contextBridge.exposeInMainWorld('native', {
   onDoubleRight: (f) => ipcRenderer.on('kompass:double-right', (_e, p) => f(p)),
   onOpenTab: (f) => ipcRenderer.on('kompass:open-tab', (_e, u) => f(u)),
   onKey: (f) => ipcRenderer.on('kompass:key', (_e, k) => f(k)),
+  // v1.5.2 fullscreen (F11 / page fullscreen)
+  setFullscreen: (on) => ipcRenderer.send('kompass:set-fullscreen', !!on),
+  onFullscreen: (f) => ipcRenderer.on('kompass:fullscreen', (_e, on) => f(!!on)),
 });

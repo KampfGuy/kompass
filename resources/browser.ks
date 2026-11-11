@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.5.1"
+let VERSION = "1.5.2"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -782,6 +782,7 @@ fn page_learn(id, page) {
     button(extra, "G Make Google page with KS", fn() { go("kompass://builder") }, "chip")
     button(extra, "🤖 For AIs: copy the whole language reference", fn() { go("kompass://learn/ai") }, "chip")
     button(extra, "🚀 Example: Spaceflight Sim in KampfScript", fn() { go("kompass://spaceflight") }, "chip")
+    button(extra, "🧊 New: 3D games in KampfScript", fn() { go("kompass://games3d") }, "chip")
     let vids = row(m, "video-row")
     video_slot(vids, 1, "Intro to KampfScript", "variables, print, if, loops")
     video_slot(vids, 2, "Functions, lists & the browser", "functions, lists/maps, and scripting the Kompass browser")
@@ -1095,6 +1096,9 @@ fn render_internal(id, url) {
   else if where == "store/publish" { page_publish(id, page) }
   else if startswith(where, "store/") { page_store_play(id, page, slice(where, 6)) }
   else if where == "spaceflight" { page_example(id, page, "spaceflight", "Spaceflight Sim") }
+  else if where == "maze3d" { page_example(id, page, "maze3d", "Coin Maze 3D") }
+  else if where == "runner3d" { page_example(id, page, "runner3d", "Kugel Runner 3D") }
+  else if where == "games3d" or where == "3d" { page_games3d(id, page) }
   else if where == "script" { if tabs[str(id)].title == "New tab" { set_tab_title(id, "Script page") } }
   else {
     set_tab_title(id, "Not found")
@@ -1264,7 +1268,9 @@ let QUICK = [
   ["⚙", "Settings", fn() { open_page("kompass://settings") }],
   ["📘", "Learn", fn() { open_page("kompass://learn") }],
   ["🔑", "Passwords", fn() { open_page("kompass://passwords") }],
-  ["G", "My page", fn() { open_page("kompass://builder") }]
+  ["G", "My page", fn() { open_page("kompass://builder") }],
+  ["⛶", "Fullscreen", fn() { toggle_fullscreen() }],
+  ["🧊", "3D games", fn() { open_page("kompass://games3d") }]
 ]
 fn quick_menu(x, y, on_web, link_url) {
   let m = popup(x, y, "quick-menu")
@@ -1313,6 +1319,33 @@ fn page_example(id, page, name, title) {
     let warn = row(page, "custom-error")
     label(warn, "kompass://" + name + ": " + r.error, "out-err")
   }
+}
+
+# ---------------------------------------------------------- v1.5.2 fullscreen (F11 / quick menu) — pages like YouTube go fullscreen by themselves, Esc leaves
+fn toggle_fullscreen() { fullscreen(not fullscreen()) }
+
+# ---------------------------------------------------------- kompass://games3d — 3D games made with KampfScript (v1.5.2)
+let GAMES3D = [
+  ["maze3d", "🪙", "Coin Maze 3D", "First-person maze: walk with W A S D, look with the mouse or a gamepad and collect every coin."],
+  ["runner3d", "🏃", "Kugel Runner 3D", "Lane runner: dodge blocks, jump bars, grab coins. Arrows / A D, Space to jump."]
+]
+fn page_games3d(id, page) {
+  set_tab_title(id, "3D games")
+  let c = col(page, "list-page")
+  heading(c, "🧊 3D games in KampfScript", "page-title")
+  label(c, "Kompass 1.5.2 can draw real 3D: scene3d, cube, sphere, plane, lights, a first-person camera with fps_controls, gamepads and collisions. These games are plain .ks files — open them in the ⚡ editor to see how they work, or ask an AI using kompass://learn/ai.", "muted")
+  for g in GAMES3D {
+    let gid = g[0]
+    let r = row(c, "store-card")
+    label(r, g[1], "store-icon")
+    let info = col(r)
+    label(info, g[2], "store-name")
+    label(info, g[3], "muted")
+    button(r, "▶ Play", fn() { go("kompass://" + gid) }, "pill")
+  }
+  let tip = col(c)
+  heading(tip, "Make your own", "")
+  codebox(tip, "let s = scene3d(body())\nlet box_ = cube(s, 1, 1, 1, \"#ff4500\")\nlet ground = plane(s, 20, 20, \"#3a7d44\")\ncamera3d(s, 0, 2, 5, 0, 0, 0)\non_frame(fn(dt) { spin3d(box_, 0, 90 * dt, 0) })")
 }
 
 # ---------------------------------------------------------- 🛒 kompass://store — the Kugel Store
@@ -1442,6 +1475,7 @@ on_key("ctrl+g", fn() { open_page("kompass://builder") })
 on_key("ctrl+shift+p", fn() { open_page("kompass://passwords") })
 on_key("f1", fn() { open_page("kompass://learn") })
 on_key("f12", fn() { if settings.devtools { ks_devtools() } })
+on_key("f11", fn() { toggle_fullscreen() })
 on_key("ctrl+shift+i", fn() { if settings.devtools { ks_devtools() } })
 on_key("ctrl+shift+j", fn() { tab_devtools(current) })
 

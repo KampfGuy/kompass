@@ -1,12 +1,12 @@
 {
   "name": "kompass",
   "productName": "Kompass",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Kompass - a desktop web browser whose UI and logic are written in KampfScript",
   "main": "src/main.js",
   "author": "KampfGuy",
   "license": "MIT",
-  "scripts": { "start": "electron .", "test": "node tests/lang.test.js && node tests/browser.test.js && node tests/v12.test.js && node tests/v13.test.js && node tests/v14.test.js && node tests/v15.test.js && node tests/v151.test.js", "gen:ai": "node tools/gen-ai-doc.js", "dist:win": "electron-builder --win portable zip --x64", "manifest": "node tools/release.js --manifest-only", "release": "node tools/release.js", "e2e:update": "xvfb-run -a node tools/e2e-update.js /workspace" },
+  "scripts": { "start": "electron .", "test": "node tests/lang.test.js && node tests/browser.test.js && node tests/v12.test.js && node tests/v13.test.js && node tests/v14.test.js && node tests/v15.test.js && node tests/v151.test.js && node tests/v152.test.js", "gen:ai": "node tools/gen-ai-doc.js", "dist:win": "electron-builder --win portable zip --x64", "manifest": "node tools/release.js --manifest-only", "release": "node tools/release.js", "e2e:update": "xvfb-run -a node tools/e2e-update.js /workspace" },
   "build": {
     "appId": "com.kampfguy.kompass",
     "productName": "Kompass",

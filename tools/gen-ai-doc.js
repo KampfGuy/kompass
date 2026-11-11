@@ -19,6 +19,9 @@ function realBuiltins() {
     if (inPage && (m = l.match(/^\s{10}([a-z_]+): B\(/)) && !core.includes(m[1])) groups.page.push(m[1]);
   }
   groups.ui = groups.ui.filter(n => !core.includes(n));
+  // v1.5.2 3D built-ins live in src/kompass3d.js (merged into the UI built-ins by host.js)
+  const k3 = fs.readFileSync(path.join(ROOT, 'src', 'kompass3d.js'), 'utf8');
+  groups.three = [...k3.slice(k3.indexOf('    const api = {')).matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
   groups.editor = [...fs.readFileSync(path.join(ROOT, 'src', 'editor.js'), 'utf8').matchAll(/^\s{8}([a-z_]+): \{ fn:/gm)].map(m => m[1]);  // print is also a host override
   return { core, ...groups };
 }
@@ -41,7 +44,7 @@ async function runEx(code) {
 async function build() {
   const real = realBuiltins();
   const missing = [];
-  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
+  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page', 'three']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
   if (missing.length) throw new Error('builtin-docs.js is missing: ' + missing.join(', '));
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
   const L = [];
@@ -121,7 +124,7 @@ async function build() {
     for (const n of real[g]) { const [sig, d] = DOCS[g][n]; P('| `' + sig.replace(/\|/g, '\\|') + '` | ' + d.replace(/\|/g, '\\|') + ' |'); }
     P('');
   };
-  P('## 7. Built-ins (' + (real.core.length + real.ui.length + real.tabs.length + real.services.length + real.editor.length + real.page.length) + ', generated from the source)', '');
+  P('## 7. Built-ins (' + (real.core.length + real.ui.length + real.tabs.length + real.services.length + real.editor.length + real.page.length + real.three.length) + ', generated from the source)', '');
   sec('7.1 Core (' + real.core.length + ') — available everywhere', 'core');
   sec('7.2 UI & styling (' + real.ui.length + ') — browser.ks, lesson stages and builder pages', 'ui', '`style` arguments are CSS class names (letters, digits, `-`, `_`). Colours are hex strings like `"#4285f4"`. In sandboxes/pages these are removed: on_key, set_window_title, set_theme, set_accent, confirm, every.');
   sec('7.3 Tabs & engine (' + real.tabs.length + ') — browser.ks only', 'tabs');
@@ -131,6 +134,14 @@ async function build() {
   P('### 7.7 Making games & apps (v1.3)', '',
     'Pages and lesson stages can draw on a `canvas`, run an `on_frame` game loop, read `key_down` / `on_keypress` / `on_mouse`, build controls with `slider` / `checkbox` / `dropdown`, and remember things with `store_get` / `store_set`. Frame loops, timers and key handlers stop automatically when the page is closed. Canvases are double-buffered, so a frame never shows half-drawn. Colours: `"#ff4500"`, `"rgba(0,0,0,0.5)"`, names like `"white"`, or a LIST for a gradient: `["#333", "#999", "#333"]` (left→right) / `["down", top, bottom]`. Setstyle also accepts layout properties (position, left, top, z-index, display, overflow, transform…) so pages can float panels over a canvas. The full Spaceflight Sim (`resources/spaceflight.ks`, open `kompass://spaceflight`) is a ~2000-line example.', '',
     '```ks', 'let c = canvas(body(), 320, 160)', 'let ball = {x: 40, y: 40, vx: 120, vy: 90}', 'on_frame(fn(dt) {', '  if key_down("space") { ball.vy -= 300 * dt }', '  ball.x += ball.vx * dt', '  ball.y += ball.vy * dt', '  if ball.x < 10 or ball.x > 310 { ball.vx = -ball.vx }', '  if ball.y < 10 or ball.y > 150 { ball.vy = -ball.vy }', '  draw_clear(c, "#141414")', '  draw_circle(c, ball.x, ball.y, 10, "#ff4500")', '  draw_text(c, 10, 14, `x = {round(ball.x)}`, "white", 12)', '})', '```', '');
+  sec('7.8 3D games (' + real.three.length + ', v1.5.2) — everywhere the UI built-ins work, including pages and Kugel Store games', 'three',
+    'Real 3D with WebGL (three.js is bundled inside Kompass, nothing is downloaded). y is up, the camera looks toward -z at yaw 0, sizes are metres, ALL ANGLES ARE DEGREES. Shapes start at (0, 0, 0), centred. Animate objects in `on_frame(fn(dt) {...})`; the scene redraws itself every frame and is cleaned up when the page closes. Put a HUD on top with normal UI built-ins using the scene as parent (`label(s, "Score")`, `canvas(s, 150, 150)` + `setstyle(x, "position", "absolute")`). Examples: `kompass://maze3d` (resources/maze3d.ks, first-person) and `kompass://runner3d` (resources/runner3d.ks, third-person); `kompass://games3d` lists them.');
+  P('```ks', '# a tiny first-person game: walk around and touch the spinning cubes',
+    'let s = scene3d(body())', 'sky3d(s, "#87ceeb", "#ffffff")', 'let ground = plane(s, 40, 40, "#3a7d44")', 'look3d(ground, {texture: "grid", repeat: 20})',
+    'let wall = cube(s, 10, 2, 0.5, "#b5653f")', 'move3d(wall, 0, 1, -6)', 'solid3d(wall)', 'let goals = []',
+    'for i in range(5) {', '  let g = cube(s, 0.6, 0.6, 0.6, "#ffd23f")', '  look3d(g, {glow: "#664400"})', '  move3d(g, i * 3 - 6, 1, -10)', '  push(goals, g)', '}',
+    'let hud = label(s, "")', 'camera3d(s, 0, 1.6, 4)', 'fps_controls(s, {speed: 5})', 'let score = 0',
+    'on_frame(fn(dt) {', '  let me = camera_get(s)', '  let keep = []', '  for g in goals {', '    spin3d(g, 0, 90 * dt, 0)', '    if dist3d(g, me) < 1 {', '      remove3d(g)', '      score += 1', '    } else { push(keep, g) }', '  }', '  goals = keep', '  settext(hud, `Score: {score}`)', '  let pad = gamepad()', '  if pad.connected and pad.a { print("A pressed") }', '})', '```', '');
   P('## 8. Kompass architecture', '',
     '- Kompass is an Electron app. `src/main.js` (main process) owns windows, files, the ad blocker, the password vault and context menus. `src/host.js` (renderer) runs `browser.ks` with the KampfScript interpreter and implements the native built-ins above. Web pages run in sandboxed Chromium `<webview>`s.',
     '- **browser.ks is the whole browser UI**: tab strip, toolbar, bookmarks, internal pages (`kompass://home`, `search`, `history`, `bookmarks`, `settings`, `about`, `learn`, `learn/ai`, `builder`, `passwords`, `page/<name>`), shortcuts. Users edit it with Ctrl+Shift+K → "★ browser.ks"; Settings → Reset restores the shipped one.',
