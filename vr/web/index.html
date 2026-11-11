@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' https: http: data: blob:; media-src 'self' https: blob:; frame-src https: http:; connect-src 'self' https://kampfos-proxy.kampfguy.workers.dev https://raw.githubusercontent.com https://api.github.com https://kugel-store.kampfguy.workers.dev https://www.google.com https://duckduckgo.com">
+<title>Kompass VR</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="vr.css"></head>
+<body data-theme="midnight"><div id="app"></div>
+<div id="boot-error" hidden></div>
+<!-- native-shim.js replaces Electron's preload (window.native + <webview>); everything after it is the unchanged Kompass runtime -->
+<script src="native-shim.js"></script><script src="ks-store.js"></script><script src="vr-xr.js"></script>
+<script src="lang.js"></script><script src="devtools.js"></script><script src="render.js"></script><script src="host.js"></script><script src="editor.js"></script></body></html>

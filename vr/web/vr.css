@@ -1,0 +1,98 @@
+/* Kompass VR — loaded AFTER src/style.css in the Android/Quest build only.
+ * Goals: readable at arm's length in a Quest 2D panel, controller-ray / hand-tracking friendly hit targets
+ * (>= 48 CSS px, no tiny close boxes), visible hover for the ray cursor, nothing that moves under the pointer,
+ * and a calmer dark palette (no pure black / pure white, lower contrast glare). */
+
+/* ---------- comfortable dark: "midnight" tuned for headsets (default theme in Kompass VR) */
+body[data-theme="midnight"] {
+  --bg:#10141f; --bar:#161c2b; --tab:#1c2335; --fg:#dde3f0; --muted:#97a2bd; --line:#2a3550;
+  --acc:#6cc4ee; --acc2:#8a6cf0; --page:#121828; --card:#192136; --card2:#1f2940; --code:#0e1320;
+  --glow:radial-gradient(1200px 500px at 50% -10%, rgba(138,108,240,.14), transparent 60%);
+}
+body[data-theme="neon"] { --fg:#ece4f7; --bg:#0e0b16; --page:#110d1a; }
+body[data-theme="brass"] { --fg:#ebe1ce; --bg:#1a140d; }
+
+html, body { font-size:17px; -webkit-tap-highlight-color:transparent; }
+::-webkit-scrollbar { width:18px; height:18px; }
+::-webkit-scrollbar-thumb { border-width:4px; min-height:60px; }
+* { -webkit-app-region:no-drag !important; }
+
+/* ---------- ray cursor feedback: every clickable thing lights up clearly, nothing jumps */
+.ks-button, .ks-link, .tab, .tile, .feature, .bm, .qm-btn, .chip, .ks-checkbox, select, input[type=range] { transition:background .1s, border-color .1s, box-shadow .1s !important; }
+.ks-button:hover, .tab:hover, .tile:hover, .feature:hover, .bm:hover, .chip:hover {
+  border-color:var(--acc) !important; box-shadow:0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent) !important; }
+.ks-button:active { transform:none !important; filter:brightness(1.25); }
+.tile:hover, .gear:hover { transform:none !important; }
+.ks-button:focus-visible, .ks-link:focus-visible, .tab:focus-visible, .tile:focus-visible { outline:3px solid var(--acc) !important; outline-offset:2px; }
+input.ks-textbox:focus-visible, textarea:focus-visible { outline:none; }
+
+/* ---------- generic controls */
+.ks-button { min-height:48px; padding:10px 18px; border-radius:14px; font-size:17px; }
+.ks-textbox { min-height:48px; padding:10px 16px; font-size:17px; border-radius:14px; }
+textarea.ks-textbox { min-height:120px; }
+.ks-link { padding:6px 4px; }
+.ks-heading { font-size:30px; }
+input[type=checkbox] { width:28px; height:28px; accent-color:var(--acc); }
+input[type=range] { height:40px; accent-color:var(--acc); min-width:220px; }
+select { min-height:48px; font-size:17px; padding:6px 12px; border-radius:12px; }
+.pill { padding:12px 22px; font-size:17px; }
+
+/* ---------- window chrome */
+.tabstrip { min-height:62px; padding:10px 12px 0; }
+.brand { padding:0 16px 12px 8px; } .brand .compass-mark { width:30px; height:30px; } .brand-name { font-size:15px; }
+.tab { padding:12px 18px 12px 22px; width:260px; min-width:120px; gap:10px; min-height:52px; }
+.favicon { width:22px; height:22px; }
+.tabtitle { font-size:16px; }
+.tabclose { min-width:40px; min-height:40px; font-size:22px; line-height:40px; padding:0; }
+.newtab { font-size:30px; min-width:56px; min-height:52px; padding:0 14px 6px; }
+.toolbar { padding:10px 14px; gap:14px; }
+.navgroup, .toolgroup { gap:6px; }
+.nav, .tool { min-width:56px; min-height:56px; font-size:24px; padding:6px 12px; border-radius:14px; }
+.tool { font-size:20px; }
+.tool.gtool { font-size:16px; }
+.omnibox { height:56px; padding:0 8px 0 4px; }
+.address { font-size:19px; padding:10px 14px; min-height:48px; }
+.star { font-size:24px; min-width:52px; min-height:48px; }
+.gear { width:56px; height:56px; font-size:26px; }
+.ks-button.vr-menu { background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#0d1220; border:0; font-weight:700; min-width:64px; }
+.bookmarks { min-height:52px; padding:4px 16px 10px; gap:10px; }
+.bm { font-size:16px; padding:10px 18px; }
+.status { font-size:14px; padding:6px 16px; }
+.pw-bar, .upd-bar, .google-note { font-size:16px; padding:10px 16px; }
+
+/* ---------- internal pages */
+.ks-page { font-size:17px; }
+.home-searchbar { width:min(820px, 86vw); padding:6px 8px 6px 14px; }
+.home-search { font-size:21px; padding:16px; }
+.chip { font-size:16px; padding:10px 20px; }
+.tiles { max-width:980px; gap:18px; }
+.tile { width:140px; height:126px; border-radius:20px; }
+.tile-icon { font-size:32px; width:58px; height:58px; } .tile-name { font-size:15px; }
+.feature { width:230px; padding:18px 20px; } .feature-desc { font-size:15px; }
+.home-foot { font-size:14px; }
+
+/* ---------- quick menu: big VR grid, opened by the ☰ button or a long trigger press / pinch-hold */
+.ks-popup { animation:none !important; width:max-content; max-width:calc(100vw - 16px); border-radius:22px; padding:16px; min-width:360px; box-shadow:0 24px 80px rgba(0,0,0,.55); }
+.qm-head { font-size:16px; padding:4px 8px 10px; }
+.qm-grid { grid-template-columns:repeat(4, 104px) !important; gap:10px !important; }
+.ks-button.qm-btn { min-height:96px; font-size:15px; padding:12px 4px; border-radius:18px; gap:6px; }
+.qm-ico { font-size:30px; }
+
+/* ---------- ⚡ editor + DevTools: keep the web page visible next to the editor instead of under it */
+body.ed-open #app { width:calc(100% - min(760px, 60vw)); }
+.ed-btn { min-height:44px; padding:8px 14px; font-size:16px; }
+.ed-select, .ed-name { min-height:44px; font-size:16px; }
+
+/* ---------- native web page placeholder: the real page is a native Android WebView drawn over this box */
+.ks-webview { background:var(--page); }
+.kvr-frame { width:100%; height:100%; border:0; background:#fff; }
+
+/* ---------- immersive (WebXR) button for KampfScript games */
+.kvr-xr-btn { position:fixed; right:22px; bottom:56px; z-index:60; min-height:56px; padding:12px 22px; border-radius:999px; border:0;
+  background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#0d1220; font:700 17px "Kompass Sans", system-ui, sans-serif; cursor:pointer;
+  box-shadow:0 10px 30px rgba(0,0,0,.45); }
+.kvr-xr-btn[hidden] { display:none; }
+
+/* long trigger press / pinch-hold = quick menu, so don't start Android text selection on the UI */
+body { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+input, textarea, .ed-root, .dt-root, .ks-codebox, [contenteditable] { -webkit-user-select:text; user-select:text; }
