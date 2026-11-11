@@ -153,7 +153,7 @@ print(count3d(s), gamepad().connected)`);
   // ---------------------------------------------------------------- browser.ks routes
   assert(/where == "maze3d" \{ page_example\(id, page, "maze3d"/.test(ks) && /where == "runner3d"/.test(ks) && /where == "games3d" or where == "3d" \{ page_games3d/.test(ks), 'routes');
   assert(/"🧊 New: 3D games in KampfScript"/.test(ks), 'Learn links to them');
-  assert(JSON.parse(read('package.json')).version === '1.5.2' && /let VERSION = "1.5.2"/.test(ks), 'version prepared as 1.5.2');
+  const ver = JSON.parse(read('package.json')).version; assert(/^1\.5\.([2-9]|\d\d)$|^1\.([6-9]|\d\d)\.|^[2-9]\./.test(ver) && ks.includes('let VERSION = "' + ver + '"'), 'version is 1.5.2 or later');
   ok('kompass://games3d, kompass://maze3d and kompass://runner3d run the games sandboxed with run_page (same as Store games); Learn + quick menu link them');
 
   console.log('\n' + passed + ' passed, 0 failed');

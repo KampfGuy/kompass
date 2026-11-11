@@ -7,6 +7,7 @@
   'use strict';
   const MAX_OBJECTS = 5000, MAX_SCENES = 4, MAX_LIVE = 8;
   let live = 0;   // WebGL contexts open in this window (Chromium allows ~16)
+  const allScenes = new Set();   // every live scene in this window, so a new scene can free ones whose page is already gone
   const D2R = Math.PI / 180;
 
   function builtins(c) {
@@ -69,7 +70,7 @@
       st.renderer.render(st.scene, st.camera); st.frames++;
     }
     function dispose(st) {
-      if (st.gone) return; st.gone = true; scenes.delete(st); live--;
+      if (st.gone) return; st.gone = true; scenes.delete(st); allScenes.delete(st); live--;
       st.scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
       for (const t of Object.values(st.texCache)) t.dispose();
       try { st.renderer.dispose(); st.renderer.forceContextLoss(); } catch (e) { /* already lost */ }
@@ -142,6 +143,7 @@
       scene3d: B(([p, w, h, s]) => {
         const TH = T();
         if (scenes.size >= MAX_SCENES) throw new KError('scene3d(): at most ' + MAX_SCENES + ' 3D scenes per page');
+        if (live >= MAX_LIVE) for (const o of [...allScenes]) if (o.off > 0 || !o.el.isConnected) o.dispose();   // e.g. Learn's ▶ Try it pressed again quickly
         if (live >= MAX_LIVE) throw new KError('scene3d(): too many 3D scenes are open in Kompass — close a 3D tab first');
         const k = make('scene3d', 'div', 'ks-scene3d', p, 'scene3d()'); if (s) { const c2 = S(s); if (!/^[a-zA-Z0-9_ -]+$/.test(c2)) throw new KError('bad style name: ' + c2); for (const x of c2.split(/\s+/).filter(Boolean)) k.el.classList.add(x); }
         const fixedW = typeof w === 'number' ? w : 0, fixedH = typeof h === 'number' ? h : 0;
@@ -154,7 +156,7 @@
         const scene = new TH.Scene(); scene.background = new TH.Color('#87ceeb');
         const camera = new TH.PerspectiveCamera(70, 16 / 9, 0.05, 2000); camera.position.set(0, 2, 6); camera.lookAt(0, 0, 0);
         const st = { h: k, el: k.el, renderer, scene, camera, objects: new Set(), texCache: {}, liveTex: new Set(), fixedW, fixedH, w: 0, h: 0, off: 0, last: 0, frames: 0, yaw: 0, pitch: 0, mdx: 0, mdy: 0, fps: null, follow: null, gone: false };
-        readCam(st); k.st = st; scenes.add(st);
+        readCam(st); k.st = st; scenes.add(st); allScenes.add(st); st.dispose = () => dispose(st);
         const amb = new TH.HemisphereLight(0xffffff, 0x445566, 1.4); scene.add(amb);
         const sun = new TH.DirectionalLight(0xffffff, 2.2); sun.position.set(8, 14, 6); sun.shadow.mapSize.set(1024, 1024);
         Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 0.5, far: 80 }); scene.add(sun); st.defaultLights = [amb, sun];

@@ -13,6 +13,42 @@
       ]
     },
     {
+      "id": "sky-hopper-3d",
+      "icon": "☁",
+      "title": "Sky Hopper 3D",
+      "author": "KampfGuy",
+      "description": "3D platformer: hop the Kugel across floating islands and moving platforms to the golden ring. Checkpoints, gems, best time. Needs Kompass 1.5.2+.",
+      "tags": [
+        "game",
+        "3d",
+        "platformer"
+      ]
+    },
+    {
+      "id": "asteroid-run-3d",
+      "icon": "☄",
+      "title": "Asteroid Run 3D",
+      "author": "KampfGuy",
+      "description": "3D space shooter: fly through an asteroid field, blast rocks before your guns overheat, grab shield rings. Faster waves, high score. Needs Kompass 1.5.2+.",
+      "tags": [
+        "game",
+        "3d",
+        "space"
+      ]
+    },
+    {
+      "id": "kugel-bowling-3d",
+      "icon": "🎳",
+      "title": "Kugel Bowling 3D",
+      "author": "KampfGuy",
+      "description": "3D bowling: aim, charge your throw and knock down all 10 pins. 5 frames, strike and spare bonuses, best game saved. Needs Kompass 1.5.2+.",
+      "tags": [
+        "game",
+        "3d",
+        "sports"
+      ]
+    },
+    {
       "id": "bouncy-ball",
       "icon": "🏀",
       "title": "Bouncy Ball",

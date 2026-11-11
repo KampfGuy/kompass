@@ -519,6 +519,7 @@ if (process.env.KOMPASS_SHOTS13) {
       await shot('kompass13-build-dark.png');
       await click('☀ Light Mode'); await wait(300);
       await go('kompass://learn'); await wait(1500);
+      console.log('[shots153] learn sidebar:', await js(`[...document.querySelectorAll('*')].map(e=>e.childElementCount?'':e.textContent).find(t=>/exercises solved/.test(t))`));
       await js(`(()=>{const b=[...document.querySelectorAll('.ks-button,.ks-link,.lesson-item, *')].find(b=>b.children.length<4&&/New in 1.3/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1000);
       await js(`(()=>{const b=[...document.querySelectorAll('.ks-button')].find(b=>/Try it/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1500);
       await shot('kompass13-learn-lesson.png');
@@ -702,6 +703,57 @@ if (process.env.KOMPASS_SHOTS152) {
       }
       console.log('[shots152] errors total:', errs.length);
     } catch (e) { console.log('[shots152] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.5.3 self-test: KOMPASS_SHOTS153=/out/dir — 3D store games + the "3D games" lessons in Learn
+if (process.env.KOMPASS_SHOTS153) {
+  const out = process.env.KOMPASS_SHOTS153;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, 'kompass153-' + name), img.toPNG()); console.log('[shots153] wrote kompass153-' + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));a.blur();})()`);
+  const hold = async (key, ms) => { win.webContents.sendInputEvent({ type: 'keyDown', keyCode: key }); await wait(ms); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: key }); };
+  const errors = () => js(`[...document.querySelectorAll('.custom-error,.out-err')].filter(e=>e.offsetParent).map(e=>e.innerText).join(';')`);
+  const glInfo = () => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-scene3d-gl')].filter(c=>c.offsetParent)[0];if(!c)return 'no 3D canvas';const g=c.getContext('webgl2')||c.getContext('webgl');return c.width+'x'+c.height+' '+(g?g.getParameter(g.VERSION):'no context')})()`);
+  const errs = [];
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots153] PAGE-ERROR', msg); } });
+    try {
+      await wait(3500);
+      await go('kompass://store'); await wait(2500);
+      console.log('[shots153] store cards', JSON.stringify(await js(`[...document.querySelectorAll('.store-card .store-name')].map(e=>e.textContent)`)));
+      await shot('store.png');
+      await js(`(()=>{const c=[...document.querySelectorAll('.store-card')].find(c=>/Sky Hopper/.test(c.innerText));if(c)c.scrollIntoView({block:'center'})})()`); await wait(500); await shot('store-3d-games.png');
+      const games = [
+        ['sky-hopper-3d', async () => { await hold('W', 700); await hold('Space', 80); await hold('W', 500); }],
+        ['asteroid-run-3d', async () => { for (let i = 0; i < 8; i++) { await hold('Space', 120); await hold(i % 2 ? 'Left' : 'Up', 150); } }],
+        ['kugel-bowling-3d', async () => { await hold('Left', 150); await hold('Space', 900); await wait(1300); }],
+      ];
+      for (const [id, play] of games) {
+        await go('kompass://store/' + id); await wait(2500); await js('document.activeElement&&document.activeElement.blur()');
+        console.log('[shots153]', id, 'GL:', await glInfo(), '| errors:', await errors() || 'none');
+        await shot(id + '-title.png');
+        await hold('Enter', 80); await wait(800); await play(); await wait(300);
+        console.log('[shots153]', id, 'after play errors:', await errors() || 'none');
+        if (process.env.KOMPASS_DBG153) console.log('[shots153] canvases', await js(`JSON.stringify([...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-canvas')].filter(c=>c.offsetParent).map(c=>{const g=c.getContext('2d');const d=g?[...g.getImageData(c.width>>1,c.height>>1,1,1).data]:null;return [c.width,c.height,getComputedStyle(c).backgroundColor,getComputedStyle(c).opacity,d, c.className]}))`));
+        await shot(id + '-play.png');
+      }
+      await go('kompass://learn'); await wait(1500);
+      console.log('[shots153] learn sidebar:', await js(`[...document.querySelectorAll('*')].map(e=>e.childElementCount?'':e.textContent).find(t=>/exercises solved/.test(t))`));
+      for (const [n, keys] of [['⑫', null], ['⑬', 'D'], ['⑭', 'W'], ['⑮', 'W']]) {
+        const ok = await js(`(()=>{const it=[...document.querySelectorAll('.learn-item')].find(e=>e.innerText.includes(${JSON.stringify(n)}));if(!it)return false;it.click();return it.innerText.replace(/\\s+/g,' ')})()`);
+        await wait(800);
+        await js(`(()=>{const b=document.querySelector('.lesson .try-btn');b.click();})()`); await wait(1500);
+        await js(`(()=>{const s=document.querySelector('.lesson .try-stage');if(s)s.scrollIntoView({block:'center'});document.activeElement&&document.activeElement.blur()})()`); await wait(400);
+        if (keys) await hold(keys, 900);
+        await wait(300);
+        console.log('[shots153] lesson', ok, '| GL:', await glInfo(), '| errors:', await errors() || 'none', '| out:', await js(`[...document.querySelectorAll('.lesson .try-out')][0].innerText.replace(/\\s+/g,' ')`));
+        await shot('lesson-' + { '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15 }[n] + '.png');
+      }
+      console.log('[shots153] errors total:', errs.length);
+    } catch (e) { console.log('[shots153] error', e && e.stack || e); }
     app.quit();
   });
 }
