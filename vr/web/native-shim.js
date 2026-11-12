@@ -136,7 +136,7 @@
     copyText: (t) => call('copyText', String(t)),
     saveTextFile: async (n, t) => (ANDROID ? callAsync('saveTextFile', String(n || 'kompass.txt'), String(t)) : ''),
     store: {
-      index: async () => store().index(storeOpts()),
+      index: async () => store().indexVR(storeOpts()),   // Kompass VR lists only the VR games (index-vr.json, tag "vr")
       code: async (id) => { const r = await store().get('entries/' + String(id) + '.ks', storeOpts()); return r.ok ? { ok: true, code: r.text, source: r.source } : r; },
       publish: async (p) => {
         const r = await store().publish(Object.assign({}, p || {}, { version: VERSION }), { fetch: nativeFetch });
@@ -169,11 +169,43 @@
       install: () => { window.native.openExternal(upd.url || 'https://github.com/KampfGuy/kompass/releases'); return true; },
       onState: (f) => updL.push(f),
     },
+    // fullscreen (Kompass 1.5.2): a Quest panel is already "the whole window"; host.js hides the browser chrome itself
+    setFullscreen: (o) => { fsOn = !!o; if (ANDROID) call('setFullscreen', fsOn); },
+    onFullscreen: (f) => on('fullscreen', f),
     onDoubleRight: (f) => on('double-right', f),
     onOpenTab: (f) => on('open-tab', f),
     onKey: (f) => on('key', f),
   };
-  window.KompassVR = { android: ANDROID, version: VERSION, emit, on, call, callAsync, nativeFetch, toast };
+  window.KompassVR = { android: ANDROID, version: VERSION, emit, on, call, callAsync, nativeFetch, toast, currentStoreGame: () => currentStoreGame(), pad: () => vpad };
+
+  // ------------------------------------------------------------------ 3D + VR (Kompass 1.5.3-vr)
+  // Quest: render 3D scenes at pixel ratio 1 (a big panel on a mobile GPU).
+  if (ANDROID) window.KOMPASS_MAX_PIXEL_RATIO = 1;
+  // Controller / Bluetooth gamepad buttons and sticks that Android delivers to the app (MainActivity forwards them)
+  // become a standard-mapping gamepad for gamepad() in KampfScript, next to any real Gamepad API pads.
+  const vpad = { id: 'Kompass VR controller', index: 0, connected: false, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
+  on('pad', (p) => {
+    if (!p) return; vpad.connected = true; vpad.timestamp = performance.now();
+    if (Array.isArray(p.axes)) for (let i = 0; i < 4; i++) vpad.axes[i] = +p.axes[i] || 0;
+    if (p.button !== undefined) { const b = vpad.buttons[p.button | 0]; if (b) { b.pressed = !!p.down; b.value = p.down ? 1 : 0; } }
+    if (p.lt !== undefined) { const b = vpad.buttons[6]; b.value = +p.lt || 0; b.pressed = b.value > 0.3; }
+    if (p.rt !== undefined) { const b = vpad.buttons[7]; b.value = +p.rt || 0; b.pressed = b.value > 0.3; }
+  });
+  const realPads = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : () => [];
+  try { navigator.getGamepads = () => { const l = Array.from(realPads() || []); if (vpad.connected && !l.some(g => g && g.connected)) return [vpad]; return l; }; } catch (e) { /* read-only */ }
+  // Immersive VR: Android's System WebView has no WebXR, so vr_start() in the APK hands the Kugel Store game that is open
+  // to the Quest Browser (which has WebXR): the app serves its own web bundle on http://127.0.0.1 (a secure context)
+  // and opens index.html#play=<game id> there. In a browser with WebXR this is not used (vr_start() goes immersive).
+  let fsOn = false;
+  const currentStoreGame = () => { const a = document.querySelector('.address'); const m = a && /^kompass:\/\/store\/([a-z0-9][a-z0-9_-]{0,47})$/.exec(String(a.value).trim()); return m ? m[1] : null; };
+  if (ANDROID) window.KompassVRHandoff = () => {
+    const id = currentStoreGame();
+    if (!id) { toast('Immersive VR runs in the Quest Browser: start a VR game from the Kugel Store to play it in the headset'); return false; }
+    toast('Opening ' + id + ' in the Quest Browser for immersive VR…'); return !!call('vrLaunch', id);
+  };
+  // play mode (the Quest Browser side): open the game as soon as the Kompass UI is up
+  const play = /[#&]play=([a-z0-9][a-z0-9_-]{0,47})/.exec(location.hash);
+  if (!ANDROID && play) { window.KompassVRPlay = play[1]; addEventListener('load', () => setTimeout(() => emit('open-tab', 'kompass://store/' + play[1]), 900)); }
   if (upd.autoUpdate && ANDROID) setTimeout(updCheck, 8000);
 
   // ------------------------------------------------------------------ <webview> replacement

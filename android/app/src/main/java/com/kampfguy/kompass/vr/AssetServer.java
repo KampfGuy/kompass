@@ -15,8 +15,9 @@ final class AssetServer {
         MIME.put("html", "text/html"); MIME.put("js", "text/javascript"); MIME.put("css", "text/css");
         MIME.put("svg", "image/svg+xml"); MIME.put("png", "image/png"); MIME.put("jpg", "image/jpeg");
         MIME.put("ttf", "font/ttf"); MIME.put("json", "application/json"); MIME.put("mp4", "video/mp4"); MIME.put("webm", "video/webm");
-        MIME.put("ks", "text/plain"); MIME.put("md", "text/plain"); MIME.put("txt", "text/plain");
+        MIME.put("ks", "text/plain"); MIME.put("woff2", "font/woff2"); MIME.put("ico", "image/x-icon"); MIME.put("md", "text/plain"); MIME.put("txt", "text/plain");
     }
+    static String mime(String ext) { return MIME.containsKey(ext) ? MIME.get(ext) : "application/octet-stream"; }
     static WebResourceResponse serve(Context c, Uri u) {
         if (!MainActivity.HOST.equals(u.getHost()) || !"https".equals(u.getScheme())) return null;
         String p = u.getPath();

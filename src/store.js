@@ -11,7 +11,7 @@ const MAX_BYTES = 4 * 1024 * 1024;     // biggest store file Kompass will downlo
 const MAX_CODE = 2 * 1024 * 1024;      // biggest program you can publish (the relay's limit)
 const RELAY = 'https://kugel-store.kampfguy.workers.dev';   // free Cloudflare Worker that holds big submissions (no GitHub token)
 const MAX_URL = 7500;                    // GitHub rejects very long prefilled URLs; above this the code goes to the clipboard
-const fileOk = (n) => n === 'index.json' || /^entries\/[a-z0-9][a-z0-9_-]{0,47}\.ks$/.test(n);
+const fileOk = (n) => n === 'index.json' || n === 'index-vr.json' || /^entries\/[a-z0-9][a-z0-9_-]{0,47}\.ks$/.test(n);
 const str = (v, n) => String(v === undefined || v === null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f]/g, '').slice(0, n);
 
 function cleanIndex(j) {
@@ -46,6 +46,12 @@ async function get(name, opts) {
 async function index(opts) {
   const r = await get('index.json', opts); if (!r.ok) return r;
   try { return { ok: true, entries: cleanIndex(JSON.parse(r.text)), source: r.source }; } catch (e) { return { ok: false, error: 'index.json is broken: ' + e.message }; }
+}
+// Kompass VR: the VR catalog is a separate file (index-vr.json) so Kompass for Windows never lists games it cannot run;
+// only entries tagged "vr" are shown.
+async function indexVR(opts) {
+  const r = await get('index-vr.json', opts); if (!r.ok) return r;
+  try { return { ok: true, entries: cleanIndex(JSON.parse(r.text)).filter(e => e.tags.includes('vr')), source: r.source }; } catch (e) { return { ok: false, error: 'index-vr.json is broken: ' + e.message }; }
 }
 
 // a prefilled GitHub issue; the .ks code goes in the body (or to the clipboard when it is too long for a URL)
@@ -88,4 +94,4 @@ function linkUrl(p, codeUrl, sha, bytes) {
     '\n\n(Uploaded by Kompass ' + (p.version || '') + ' — the Kugel Store bot saves it into the repo when you submit this issue.)';
   return 'https://github.com/' + REPO + '/issues/new?labels=submission&title=' + encodeURIComponent('[Submit] ' + title) + '&body=' + encodeURIComponent(body);
 }
-module.exports = { REPO, RAW, RELAY, get, index, cleanIndex, publishUrl, publish, linkUrl, fileOk, MAX_URL, MAX_CODE, MAX_BYTES };
+module.exports = { REPO, RAW, RELAY, get, index, indexVR, cleanIndex, publishUrl, publish, linkUrl, fileOk, MAX_URL, MAX_CODE, MAX_BYTES };

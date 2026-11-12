@@ -14,7 +14,8 @@
   btn.title = 'Show this KampfScript canvas in immersive VR';
   document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
   const bigCanvas = () => { let best = null, area = 0; for (const c of document.querySelectorAll('.ks-page canvas')) { const r = c.getBoundingClientRect(); const a = r.width * r.height; if (c.getClientRects().length && r.width >= 200 && r.height >= 150 && a > area) { best = c; area = a; } } return best; };
-  setInterval(() => { btn.hidden = !(supported && !session && bigCanvas()); }, 700);
+  // VR games made with vr_setup() have their own immersive mode (vr_start), so the canvas mirror hides for them
+  setInterval(() => { btn.hidden = !(supported && !session && bigCanvas() && !document.querySelector('canvas[data-kvr]')); }, 700);
   let session = null;
   const key = (k, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { key: k, bubbles: true }));
   btn.addEventListener('click', async () => {

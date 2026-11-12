@@ -130,6 +130,13 @@ final class Bridge {
             case "copyText": { final String t = a.getString(0); ui(() -> clip(t)); return true; }
             case "toast": { final String t = a.getString(0); main.post(() -> Toast.makeText(act, t, Toast.LENGTH_LONG).show()); return true; }
             case "quit": main.post(act::finishAndRemoveTask); return true;
+            case "setFullscreen": return true;   // the Quest panel already is the window; host.js hides the browser chrome
+            case "vrLaunch": {
+                String id = a.getString(0);
+                if (!id.matches("[a-z0-9][a-z0-9_-]{0,47}")) throw new Exception("bad game id");
+                final String url = LocalServer.start(act).url("index.html#play=" + id);
+                main.post(() -> act.openInXrBrowser(url)); return true;
+            }
             case "webDebugging": main.post(() -> WebView.setWebContentsDebuggingEnabled(true)); return true;
             // ---- native web tabs
             case "tabCreate": { final int id = a.getInt(0); main.post(() -> act.tabs.create(id)); return true; }

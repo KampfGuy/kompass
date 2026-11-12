@@ -479,6 +479,46 @@ on_frame(fn(dt) {
 })
 ```
 
+### 7.9 VR games (14, Kompass VR) — immersive WebXR with a desktop simulator
+
+A 3D scene can become an immersive VR world. `vr_setup(s)` gives the scene a player rig: a head and two hands (controllers). `vr_start(s)` (call it from a button or key press) enters immersive VR where WebXR `immersive-vr` exists (Meta Quest Browser, desktop Chrome with a PC headset). In the Kompass VR app (Android WebView has no WebXR) `vr_start` hands the current Kugel Store game to the Quest Browser and returns "browser". Everywhere else it returns "flat" and the **desktop simulator** runs: the mouse moves the right hand (hold Shift for the left), left button = trigger, right button = grip (or F / G), E / R = A / B, W A S D = left stick, arrows = right stick, wheel = reach. Hands report position, rotation, pointing direction, VELOCITY (m/s — swing detection) and buttons; `vr_attach` glues a racket or sword to a hand. In VR the HTML HUD is not visible: draw scores on a `canvas` and show it in the world with `panel3d`.
+
+| built-in | description |
+|---|---|
+| `vr_supported() -> bool` | true when immersive VR (WebXR immersive-vr) is available right here (e.g. the Meta Quest Browser). |
+| `vr_available() -> text` | "vr" (immersive VR here), "browser" (Kompass VR app: vr_start opens the game in the Quest Browser) or "none" (desktop: the mouse simulator). |
+| `vr_setup(scene, {height, hands, camera, pitch, reach}?)` | Give a 3D scene a VR player rig: head + two hands with default controller models (hands: false hides them). On a flat screen the camera sits at the head (height 1.6 m, pitch -12°) unless camera: false. Turns fps_controls/camera_follow off. |
+| `vr_start(scene) -> text` | Enter immersive VR. Call it from a click or key press. Returns "vr" (session starting), "browser" (Kompass VR app: handed to the Quest Browser) or "flat" (no VR here: keep using the simulator). |
+| `vr_stop(scene)` | Leave immersive VR (the headset's menu button does too). |
+| `vr_mode(scene) -> text` | "vr" while immersive, else "flat". |
+| `vr_rig(scene, x?, y?, z?, yaw?) -> map` | Move the player: the rig is the spot on the floor where the player stands (VR: the middle of their play area), yaw in degrees. Without x/y/z it just returns {x, y, z, yaw}. Locomotion = moving the rig. |
+| `vr_head(scene) -> map` | The head (camera) in world space: {x, y, z, yaw, pitch, dir}. |
+| `vr_hands(scene) -> list` | [left, right] hand maps, see vr_hand. |
+| `vr_hand(scene, "left"\|"right") -> map` | {hand, connected, x, y, z (world), rx, ry, rz (degrees), dir (where the controller points), up, vx, vy, vz, speed (m/s — use it for swings and punches), trigger, grip (0..1), a, b (A/X, B/Y), stick_x, stick_y (−1..1), stick_click, mode}. |
+| `vr_attach(scene, obj, hand?)` | Glue a 3D object to a hand (it follows the controller every frame, no lag). After attaching, move3d/turn3d are relative to the hand: -z points forward out of the fist. vr_attach(scene, obj) (no hand) puts it back into the world. |
+| `vr_haptic(scene, hand, strength?, ms?) -> bool` | Rumble a controller (strength 0..1, default 0.5, 60 ms). false when there is no rumble (desktop). |
+| `panel3d(scene, canvas, width?) -> obj` | Show a canvas() as a flat screen in the 3D world (unlit, live: redraw the canvas and the panel updates). Use it for scoreboards and menus that must be visible inside the headset. width in metres (default 1). |
+| `world3d(obj) -> map` | An object's position in world space {x, y, z} (pos3d is relative to its parent, e.g. a hand). |
+
+```ks
+# swing a sword in VR (or with the mouse on a normal screen)
+let s = scene3d(body())
+vr_setup(s)
+let blade = cube(s, 0.04, 0.04, 1, "#55ddff")
+vr_attach(s, blade, "right")
+move3d(blade, 0, 0, -0.5)
+let target = sphere(s, 0.25, "#ffaa00")
+move3d(target, 0, 1.4, -1.2)
+button(s, "Enter VR", fn() { print(vr_start(s)) })
+on_frame(fn(dt) {
+  let h = vr_hand(s, "right")
+  if h.speed > 2 and dist3d(blade, target) < 0.6 {
+    vr_haptic(s, "right", 0.8, 50)
+    move3d(target, random(-5, 5) / 10, 1.4, -1.2)
+  }
+})
+```
+
 ## 8. Kompass architecture
 
 - Kompass is an Electron app. `src/main.js` (main process) owns windows, files, the ad blocker, the password vault and context menus. `src/host.js` (renderer) runs `browser.ks` with the KampfScript interpreter and implements the native built-ins above. Web pages run in sandboxed Chromium `<webview>`s.

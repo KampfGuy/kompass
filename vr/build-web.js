@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Assemble the Kompass VR web bundle (the UI that runs inside the Android app).
  *   node vr/build-web.js [outDir]     (default: android/app/src/main/assets/www)
- * Copies the UNCHANGED shared runtime from src/ (lang.js, render.js, host.js, editor.js, devtools.js, style.css, fonts),
+ * Copies the UNCHANGED shared runtime from src/ (lang.js, render.js, host.js, editor.js, devtools.js, kompass3d.js + three.js, style.css, fonts),
  * adds the VR layer from vr/web/ (native-shim.js, vr.css, vr-xr.js, index.html), wraps src/store.js for the browser,
  * and puts resources/ under ks/ with browser.ks = resources/browser.ks + vr/browser-vr-addon.ks. */
 'use strict';
@@ -16,7 +16,7 @@ fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'ks'), { recursive: true });
 const cp = (from, to) => { fs.mkdirSync(path.dirname(to), { recursive: true }); fs.cpSync(from, to, { recursive: true }); };
 
-for (const f of ['lang.js', 'render.js', 'host.js', 'editor.js', 'devtools.js', 'style.css', 'compass.svg', 'fonts']) cp(path.join(ROOT, 'src', f), path.join(OUT, f));
+for (const f of ['lang.js', 'render.js', 'host.js', 'editor.js', 'devtools.js', 'style.css', 'compass.svg', 'fonts', 'kompass3d.js', 'vendor/three.min.js']) cp(path.join(ROOT, 'src', f), path.join(OUT, f));
 for (const f of fs.readdirSync(path.join(__dirname, 'web'))) cp(path.join(__dirname, 'web', f), path.join(OUT, f));
 
 // src/store.js is a Node module; give it tiny fs/path/Buffer/process stand-ins (bundled offline copy = sync XHR)
@@ -40,10 +40,14 @@ const RES = path.join(ROOT, 'resources');
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const r = rel ? rel + '/' + e.name : e.name;
     if (e.isDirectory()) { walk(path.join(dir, e.name), r); continue; }
-    if (r === 'browser.ks' || r === 'videos/README.txt') continue;
+    if (r === 'browser.ks' || r === 'videos/README.txt' || r.startsWith('store/')) continue;   // the VR store catalog comes from vr/store
     cp(path.join(dir, e.name), path.join(OUT, 'ks', r)); files.push(r);
   }
 })(RES, '');
+// Kugel Store offline copy: ONLY the VR games (vr/store/index-vr.json + their entries). The Windows catalog keeps its games.
+const vrIndex = JSON.parse(fs.readFileSync(path.join(__dirname, 'store/index-vr.json'), 'utf8'));
+for (const e of vrIndex.entries) { if (!(e.tags || []).includes('vr')) throw new Error('VR store entry without the "vr" tag: ' + e.id); const r = 'store/entries/' + e.id + '.ks'; const code = fs.readFileSync(path.join(__dirname, r), 'utf8'); K.parse(code); cp(path.join(__dirname, r), path.join(OUT, 'ks', r)); files.push(r); }
+for (const n of ['index-vr.json', 'index.json']) { fs.writeFileSync(path.join(OUT, 'ks/store', n), JSON.stringify(vrIndex, null, 2) + '\n'); files.push('store/' + n); }
 const browserKs = fs.readFileSync(path.join(RES, 'browser.ks'), 'utf8').replace(/\s*$/, '\n') + fs.readFileSync(path.join(__dirname, 'browser-vr-addon.ks'), 'utf8');
 K.parse(browserKs);   // fail the build on a syntax error
 fs.writeFileSync(path.join(OUT, 'ks', 'browser.ks'), browserKs); files.push('browser.ks');

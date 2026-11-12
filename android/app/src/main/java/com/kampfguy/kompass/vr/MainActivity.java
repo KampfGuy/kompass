@@ -6,6 +6,9 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -116,6 +119,52 @@ public class MainActivity extends Activity {
     void openExternal(String url) {
         try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
         catch (Exception e) { Log.w(TAG, "no app for " + url); }
+    }
+
+    /** Immersive VR runs in the Quest Browser (it has WebXR; Android's WebView doesn't). */
+    void openInXrBrowser(String url) {
+        for (String pkg : new String[] { "com.oculus.browser", "com.android.chrome" }) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return; }
+            catch (Exception ignored) { /* not installed */ }
+        }
+        try { startActivity(Intent.createChooser(new Intent(Intent.ACTION_VIEW, Uri.parse(url)), "Open in a browser with WebXR")); }
+        catch (Exception e) { Log.w(TAG, "no browser for " + url); }
+    }
+
+    // ---- controllers / gamepads -> gamepad() in KampfScript (the shim turns these into a standard-mapping pad)
+    private static int padButton(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_BUTTON_A: return 0; case KeyEvent.KEYCODE_BUTTON_B: return 1;
+            case KeyEvent.KEYCODE_BUTTON_X: return 2; case KeyEvent.KEYCODE_BUTTON_Y: return 3;
+            case KeyEvent.KEYCODE_BUTTON_L1: return 4; case KeyEvent.KEYCODE_BUTTON_R1: return 5;
+            case KeyEvent.KEYCODE_BUTTON_L2: return 6; case KeyEvent.KEYCODE_BUTTON_R2: return 7;
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return 8; case KeyEvent.KEYCODE_BUTTON_START: return 9;
+            case KeyEvent.KEYCODE_BUTTON_THUMBL: return 10; case KeyEvent.KEYCODE_BUTTON_THUMBR: return 11;
+            case KeyEvent.KEYCODE_DPAD_UP: return 12; case KeyEvent.KEYCODE_DPAD_DOWN: return 13;
+            case KeyEvent.KEYCODE_DPAD_LEFT: return 14; case KeyEvent.KEYCODE_DPAD_RIGHT: return 15;
+            default: return -1;
+        }
+    }
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int src = e.getSource();
+        boolean pad = (src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD || (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+        int b = padButton(e.getKeyCode());
+        if (pad && b >= 0 && e.getRepeatCount() == 0 && (e.getAction() == KeyEvent.ACTION_DOWN || e.getAction() == KeyEvent.ACTION_UP)) {
+            emit("pad", "{\"button\":" + b + ",\"down\":" + (e.getAction() == KeyEvent.ACTION_DOWN) + "}");
+        }
+        return super.dispatchKeyEvent(e);
+    }
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent e) {
+        if ((e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK && e.getAction() == MotionEvent.ACTION_MOVE) {
+            float lt = Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE));
+            float rt = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS));
+            emit("pad", String.format(java.util.Locale.ROOT, "{\"axes\":[%.3f,%.3f,%.3f,%.3f],\"lt\":%.3f,\"rt\":%.3f}",
+                e.getAxisValue(MotionEvent.AXIS_X), e.getAxisValue(MotionEvent.AXIS_Y), e.getAxisValue(MotionEvent.AXIS_Z), e.getAxisValue(MotionEvent.AXIS_RZ), lt, rt));
+            return true;
+        }
+        return super.onGenericMotionEvent(e);
     }
 
     // ---- HTML5 fullscreen (YouTube etc.) from a web tab

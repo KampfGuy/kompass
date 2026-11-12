@@ -40,7 +40,7 @@ const test = async (name, f) => { try { await f(); pass++; console.log('  ok   '
       assert(new RegExp('\\b' + m + '\\(').test(shim), 'webview method ' + m);
   });
 
-  await test('VR browser.ks boots: midnight theme on first run, ☰ menu button, 16 quick-menu entries, all internal pages draw', async () => {
+  await test('VR browser.ks boots: midnight theme on first run, ☰ menu button, 18 quick-menu entries, the VR lesson, all internal pages draw', async () => {
     const src = fs.readFileSync(path.join(out, 'ks/browser.ks'), 'utf8');
     const host = fs.readFileSync(path.join(ROOT, 'src/host.js'), 'utf8');
     const names = [...host.matchAll(/^\s{6}([a-z_]+): B\(/gm)].map(m => m[1]);
@@ -78,7 +78,9 @@ const test = async (name, f) => { try { await f(); pass++; console.log('  ok   '
     assert.strictEqual(themes[themes.length - 1], 'midnight', 'VR default theme');
     assert(saved.settings && saved.settings.m.get('vr_setup') === 1, 'first-run flag saved');
     assert(buttons.some(([t, s]) => t === '☰' && /vr-menu/.test(s)), 'VR menu button');
-    assert.strictEqual(await it.repl('len(QUICK)'), 16);
+    assert.strictEqual(await it.repl('len(QUICK)'), 18);   // Windows 14 (1.5.2 added fullscreen) + 4 VR entries
+    assert.strictEqual(await it.repl('len(LESSONS)'), 16);
+    assert.strictEqual(await it.repl('LESSONS[15].title'), 'VR games: hands, swings & immersive mode');
     assert.strictEqual(await it.repl('VERSION'), require(path.join(ROOT, 'package.json')).version + ' VR');
     await it.invoke(dbl, [100, 100, true, 'https://example.com/']);
     assert(popups >= 1, 'long-press/☰ opens the quick menu');
