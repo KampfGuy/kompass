@@ -6,7 +6,7 @@ const { realBuiltins } = require('../tools/gen-ai-doc.js');
 function stubRuntime(opts) {
   opts = opts || {};
   const real = realBuiltins();
-  const calls = {}, frames = [], mice = [], keys = [], store = Object.assign({}, opts.store || {}), down = new Set();
+  const calls = {}, frames = [], mice = [], keys = [], store = Object.assign({}, opts.store || {}), down = opts.down || new Set();
   const out = [];
   const b = {};
   const H = (kind) => new K.KHandle(kind, { text: '', value: '' });
@@ -37,6 +37,7 @@ function stubRuntime(opts) {
   b.store_get = count('store_get', ([k, d]) => (K.show(k) in store) ? store[K.show(k)] : (d === undefined ? null : d));
   b.store_set = count('store_set', ([k, v]) => { store[K.show(k)] = v; return true; });
   b.after = count('after', () => null);
+  Object.assign(b, opts.extra || {});   // e.g. the real 3D built-ins (tests/v152.test.js)
   const it = new K.Interpreter({ builtins: b, maxSteps: 2000000, onPrint: (x) => out.push(x), onError: (e) => { throw e; } });
   const api = {
     it, calls, frames, mice, keys, store, down, out,

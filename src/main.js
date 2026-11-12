@@ -72,6 +72,9 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: true },
   });
   win.setMenuBarVisibility(false);
+  // v1.5.2 fullscreen: tell the renderer when the OS/window manager leaves or enters fullscreen
+  win.on('leave-full-screen', () => { if (win) win.webContents.send('kompass:fullscreen', false); });
+  win.on('enter-full-screen', () => { if (win) win.webContents.send('kompass:fullscreen', true); });
   win.loadFile(path.join(__dirname, 'index.html'));
 }
 
@@ -90,10 +93,17 @@ app.on('web-contents-created', (_e, contents) => {
   if (contents.getType() === 'webview') {
     contents.setUserAgent(CHROME_UA);
     contents.setWindowOpenHandler(({ url }) => { if (win) win.webContents.send('kompass:open-tab', url); return { action: 'deny' }; });
+    // v1.5.2: HTML5 fullscreen (YouTube, Google Slides/Docs present, Maps...). host.js hides the chrome; Esc leaves it like in Chrome.
+    let htmlFs = false;
+    contents.on('enter-html-full-screen', () => { htmlFs = true; });
+    contents.on('leave-html-full-screen', () => { htmlFs = false; });
     contents.on('before-input-event', (ev, input) => {
       // forward browser shortcuts from inside pages to the KampfScript chrome
       if (input.type !== 'keyDown') return;
       const k = (input.control ? 'ctrl+' : '') + (input.shift ? 'shift+' : '') + (input.alt ? 'alt+' : '') + input.key.toLowerCase();
+      if (k === 'escape' && htmlFs) { ev.preventDefault(); contents.executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true).catch(() => {}); return; }
+      if (k === 'f11') { ev.preventDefault(); if (win) win.webContents.send('kompass:key', k); return; }
+      if (k === 'escape' && win && win.isFullScreen()) { if (win) win.webContents.send('kompass:key', k); return; }   // browser fullscreen (F11); the page still gets Esc
       if (/^(ctrl\+|alt\+)/.test(k) || k === 'f5' || k === 'f12') { if (win) win.webContents.send('kompass:key', k); }
     });
   } else if (contents !== (win && win.webContents)) {
@@ -192,6 +202,7 @@ ipcMain.handle('kompass:capture', async (_e, file) => {
   fs.writeFileSync(file, img.toPNG()); return true;
 });
 ipcMain.on('kompass:argv', e => { e.returnValue = process.argv; });
+ipcMain.on('kompass:set-fullscreen', (e, on) => { if (win && e.sender === win.webContents && win.isFullScreen() !== !!on) win.setFullScreen(!!on); });
 ipcMain.on('kompass:quit', () => app.quit());
 ipcMain.on('kompass:version', e => { e.returnValue = app.getVersion(); });
 ipcMain.handle('kompass:clear-data', async () => {
@@ -508,6 +519,7 @@ if (process.env.KOMPASS_SHOTS13) {
       await shot('kompass13-build-dark.png');
       await click('☀ Light Mode'); await wait(300);
       await go('kompass://learn'); await wait(1500);
+      console.log('[shots153] learn sidebar:', await js(`[...document.querySelectorAll('*')].map(e=>e.childElementCount?'':e.textContent).find(t=>/exercises solved/.test(t))`));
       await js(`(()=>{const b=[...document.querySelectorAll('.ks-button,.ks-link,.lesson-item, *')].find(b=>b.children.length<4&&/New in 1.3/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1000);
       await js(`(()=>{const b=[...document.querySelectorAll('.ks-button')].find(b=>/Try it/.test(b.textContent)&&b.offsetParent);if(b)b.click()})()`); await wait(1500);
       await shot('kompass13-learn-lesson.png');
@@ -640,6 +652,108 @@ if (process.env.KOMPASS_SHOTS_GAMES) {
         console.log('[games]', id, errs.length || info ? 'ERRORS ' + JSON.stringify([...new Set(errs)].slice(0, 3)) + ' ' + info : 'ok');
       }
     } catch (e) { console.log('[games] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.5.2 self-test: KOMPASS_SHOTS152=/out/dir — 3D games + fullscreen (F11, HTML5 fullscreen from a page, Esc)
+//   KOMPASS_FS_URLS = pages to test HTML5 fullscreen on, comma separated; KOMPASS_FS_SEL<n> = a fullscreen button to click on page n
+if (process.env.KOMPASS_SHOTS152) {
+  const out = process.env.KOMPASS_SHOTS152;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, 'kompass152-' + name), img.toPNG()); console.log('[shots152] wrote kompass152-' + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  const hold = async (key, ms) => { win.webContents.sendInputEvent({ type: 'keyDown', keyCode: key }); await wait(ms); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: key }); };
+  const state = () => js(`({fs: document.body.classList.contains('ks-fullscreen'), web: document.body.classList.contains('ks-webfs'), chromeHidden: (()=>{const v=document.querySelector('.ks-viewarea').getBoundingClientRect();return v.top===0&&v.left===0&&v.width===innerWidth&&v.height===innerHeight})(), hint: (document.querySelector('.ks-fs-hint')||{}).textContent||''})`).then(s => Object.assign(s, { window: win.isFullScreen() }));
+  const glInfo = () => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-scene3d-gl')][0];if(!c)return 'no 3D canvas';const g=c.getContext('webgl2')||c.getContext('webgl');if(!g)return 'no context';const px=new Uint8Array(4);g.readPixels(c.width>>1,c.height>>1,1,1,g.RGBA,g.UNSIGNED_BYTE,px);return c.width+'x'+c.height+' '+(g.getParameter(g.VERSION))+' centre '+[...px].join(',')})()`);
+  const errs = [];
+  const guest = () => require('electron').webContents.getAllWebContents().filter(w => w.getType() === 'webview' && !w.isDestroyed()).find(w => /^https?:|^data:/.test(w.getURL()) && w.getURL() !== 'about:blank');
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots152] PAGE-ERROR', msg); } });
+    try {
+      await wait(3500);
+      await go('kompass://games3d'); await wait(1200); await shot('games3d.png');
+      await go('kompass://maze3d'); await wait(2500);
+      console.log('[shots152] maze3d GL:', await glInfo(), '| errors:', await js(`[...document.querySelectorAll('.custom-error')].map(e=>e.innerText).join(';')`) || 'none');
+      await shot('maze3d-start.png');
+      await hold('W', 1600); await hold('Right', 500); await hold('W', 800); await wait(300); await shot('maze3d-walked.png');
+      await go('kompass://runner3d'); await wait(2000); await shot('runner3d-start.png'); await hold('Space', 80); await wait(1500); await hold('Left', 80); await wait(500); await hold('Space', 80); await wait(250);
+      console.log('[shots152] runner3d GL:', await glInfo(), '| errors:', await js(`[...document.querySelectorAll('.custom-error')].map(e=>e.innerText).join(';')`) || 'none');
+      await shot('runner3d.png');
+      await wait(4000); await shot('runner3d-later.png');
+      // F11 = whole-browser fullscreen
+      await hold('F11', 60); await wait(1200); console.log('[shots152] after F11', JSON.stringify(await state())); await shot('f11-fullscreen.png');
+      await hold('Escape', 60); await wait(1200); console.log('[shots152] after Esc', JSON.stringify(await state())); await shot('f11-exited.png');
+      // HTML5 fullscreen requested by a page (what YouTube's ⛶ button / Google Slides "Present" do)
+      const urls = String(process.env.KOMPASS_FS_URLS || 'https://www.youtube.com/').split(',').filter(Boolean);
+      let n = 0;
+      for (const u of urls) {
+        n++; await go(u); await wait(+process.env.KOMPASS_FS_WAIT || 6000);
+        const g = guest(); if (!g) { console.log('[shots152] no guest for', u); continue; }
+        console.log('[shots152] page', n, g.getURL().slice(0, 80), '| title', g.getTitle());
+        await shot('page' + n + '-normal.png');
+        const sel = process.env['KOMPASS_FS_SEL' + n] || '';
+        const r = await g.executeJavaScript(`(async()=>{const b=${JSON.stringify(sel)}&&document.querySelector(${JSON.stringify(sel)});if(b){b.click();await new Promise(r=>setTimeout(r,800));if(document.fullscreenElement)return 'clicked '+${JSON.stringify(sel)};}const e=document.querySelector('#movie_player')||document.querySelector('video')||document.documentElement;await e.requestFullscreen();return 'requestFullscreen on '+(e.id||e.tagName)})()`, true).catch(e => 'ERR ' + e.message);
+        await wait(1500); console.log('[shots152] page', n, 'fullscreen:', r, JSON.stringify(await state()), '| guest fullscreenElement:', await g.executeJavaScript('document.fullscreenElement ? (document.fullscreenElement.id || document.fullscreenElement.tagName) : null'));
+        await shot('page' + n + '-fullscreen.png');
+        g.focus(); g.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); g.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' }); await wait(1500);
+        console.log('[shots152] page', n, 'after Esc', JSON.stringify(await state()), '| guest fullscreenElement:', await g.executeJavaScript('document.fullscreenElement ? document.fullscreenElement.tagName : null'));
+        await shot('page' + n + '-exited.png');
+      }
+      console.log('[shots152] errors total:', errs.length);
+    } catch (e) { console.log('[shots152] error', e && e.stack || e); }
+    app.quit();
+  });
+}
+
+// ---------------- v1.5.3 self-test: KOMPASS_SHOTS153=/out/dir — 3D store games + the "3D games" lessons in Learn
+if (process.env.KOMPASS_SHOTS153) {
+  const out = process.env.KOMPASS_SHOTS153;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, 'kompass153-' + name), img.toPNG()); console.log('[shots153] wrote kompass153-' + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));a.blur();})()`);
+  const hold = async (key, ms) => { win.webContents.sendInputEvent({ type: 'keyDown', keyCode: key }); await wait(ms); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: key }); };
+  const errors = () => js(`[...document.querySelectorAll('.custom-error,.out-err')].filter(e=>e.offsetParent).map(e=>e.innerText).join(';')`);
+  const glInfo = () => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-scene3d-gl')].filter(c=>c.offsetParent)[0];if(!c)return 'no 3D canvas';const g=c.getContext('webgl2')||c.getContext('webgl');return c.width+'x'+c.height+' '+(g?g.getParameter(g.VERSION):'no context')})()`);
+  const errs = [];
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots153] PAGE-ERROR', msg); } });
+    try {
+      await wait(3500);
+      await go('kompass://store'); await wait(2500);
+      console.log('[shots153] store cards', JSON.stringify(await js(`[...document.querySelectorAll('.store-card .store-name')].map(e=>e.textContent)`)));
+      await shot('store.png');
+      await js(`(()=>{const c=[...document.querySelectorAll('.store-card')].find(c=>/Sky Hopper/.test(c.innerText));if(c)c.scrollIntoView({block:'center'})})()`); await wait(500); await shot('store-3d-games.png');
+      const games = [
+        ['sky-hopper-3d', async () => { await hold('W', 700); await hold('Space', 80); await hold('W', 500); }],
+        ['asteroid-run-3d', async () => { for (let i = 0; i < 8; i++) { await hold('Space', 120); await hold(i % 2 ? 'Left' : 'Up', 150); } }],
+        ['kugel-bowling-3d', async () => { await hold('Left', 150); await hold('Space', 900); await wait(1300); }],
+      ];
+      for (const [id, play] of games) {
+        await go('kompass://store/' + id); await wait(2500); await js('document.activeElement&&document.activeElement.blur()');
+        console.log('[shots153]', id, 'GL:', await glInfo(), '| errors:', await errors() || 'none');
+        await shot(id + '-title.png');
+        await hold('Enter', 80); await wait(800); await play(); await wait(300);
+        console.log('[shots153]', id, 'after play errors:', await errors() || 'none');
+        if (process.env.KOMPASS_DBG153) console.log('[shots153] canvases', await js(`JSON.stringify([...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-canvas')].filter(c=>c.offsetParent).map(c=>{const g=c.getContext('2d');const d=g?[...g.getImageData(c.width>>1,c.height>>1,1,1).data]:null;return [c.width,c.height,getComputedStyle(c).backgroundColor,getComputedStyle(c).opacity,d, c.className]}))`));
+        await shot(id + '-play.png');
+      }
+      await go('kompass://learn'); await wait(1500);
+      console.log('[shots153] learn sidebar:', await js(`[...document.querySelectorAll('*')].map(e=>e.childElementCount?'':e.textContent).find(t=>/exercises solved/.test(t))`));
+      for (const [n, keys] of [['⑫', null], ['⑬', 'D'], ['⑭', 'W'], ['⑮', 'W']]) {
+        const ok = await js(`(()=>{const it=[...document.querySelectorAll('.learn-item')].find(e=>e.innerText.includes(${JSON.stringify(n)}));if(!it)return false;it.click();return it.innerText.replace(/\\s+/g,' ')})()`);
+        await wait(800);
+        await js(`(()=>{const b=document.querySelector('.lesson .try-btn');b.click();})()`); await wait(1500);
+        await js(`(()=>{const s=document.querySelector('.lesson .try-stage');if(s)s.scrollIntoView({block:'center'});document.activeElement&&document.activeElement.blur()})()`); await wait(400);
+        if (keys) await hold(keys, 900);
+        await wait(300);
+        console.log('[shots153] lesson', ok, '| GL:', await glInfo(), '| errors:', await errors() || 'none', '| out:', await js(`[...document.querySelectorAll('.lesson .try-out')][0].innerText.replace(/\\s+/g,' ')`));
+        await shot('lesson-' + { '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15 }[n] + '.png');
+      }
+      console.log('[shots153] errors total:', errs.length);
+    } catch (e) { console.log('[shots153] error', e && e.stack || e); }
     app.quit();
   });
 }

@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.5.1"
+let VERSION = "1.5.3"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -700,7 +700,27 @@ let LESSONS = [
    text: ["Friendlier syntax: `template strings` put values inside text with {braces}: `Hi {name}, next year you are {age + 1}`. for i, item in list gives the index too (for key, value in map). x %= 3 works, and typos get a hint: pirnt -> did you mean print?",
           "Build real apps: canvas(parent, w, h) + draw_rect / draw_circle / draw_line / draw_text / draw_poly, on_frame(fn(dt) {...}) runs every frame, key_down(\"left\") and on_mouse(c, fn(e) {...}) read input, slider / checkbox / dropdown make controls, store_get / store_set remember things, vec / vadd / vlen / atan2 / clamp do the maths. The whole Spaceflight Sim (kompass://spaceflight) is written this way."],
    code: "let c = canvas(body(), 320, 160)\nlet ball = {x: 40, y: 40, vx: 120, vy: 90}\non_frame(fn(dt) {\n  ball.x += ball.vx * dt\n  ball.y += ball.vy * dt\n  if ball.x < 10 or ball.x > 310 { ball.vx = -ball.vx }\n  if ball.y < 10 or ball.y > 150 { ball.vy = -ball.vy }\n  draw_clear(c, \"#141414\")\n  draw_circle(c, ball.x, ball.y, 10, \"#ff4500\")\n  draw_text(c, 10, 14, `x = {round(ball.x)}`, \"white\", 12)\n})",
-   task: "With let age = 16, print a template string so the output is: next year: 17", starter: "let age = 16\n", expect: "next year: 17"}
+   task: "With let age = 16, print a template string so the output is: next year: 17", starter: "let age = 16\n", expect: "next year: 17"},
+  {icon: "⑫", title: "3D games ①: scene, shapes & light", ui: true,
+   text: ["Kompass can draw real 3D. scene3d(parent, w, h) makes a 3D view (here body() is the stage below, 260 px high). y is UP, sizes are metres and every angle is in DEGREES.",
+          "Shapes: cube(s, w, h, d, color), sphere(s, r, color), cylinder, cone, torus and plane (a floor). They start centred at (0, 0, 0): move3d(obj, x, y, z) places them, turn3d(obj, rx, ry, rz) rotates them, look3d(obj, {texture: \"grid\", shiny: 0.8}) changes the material. A scene comes with a sky and soft light; light3d adds lamps. camera3d(s, x, y, z, look_x, look_y, look_z) puts the camera somewhere and aims it."],
+   code: "let s = scene3d(body(), nil, 260)\nsky3d(s, \"#87ceeb\", \"#ffffff\")\nlet ground = plane(s, 20, 20, \"#3a7d44\")\nlook3d(ground, {texture: \"grid\", repeat: 10})\nlet box_ = cube(s, 1, 1, 1, \"#ff4500\")\nmove3d(box_, -1.5, 0.5, 0)\nturn3d(box_, 0, 30, 0)\nlet ball = sphere(s, 0.6, \"#4285f4\")\nmove3d(ball, 1.5, 0.6, 0)\nlook3d(ball, {shiny: 0.8})\nlet lamp = light3d(s, \"point\", \"#ffd23f\", 15, 0, 2.5, 1)\ncamera3d(s, 0, 2.5, 6, 0, 0.5, 0)\nprint(\"objects in the scene:\", count3d(s))",
+   task: "Make a sphere called ball, move it to (2, 1, 0) and print pos3d(ball).x and pos3d(ball).y on one line.", starter: "let s = scene3d(body(), nil, 200)\n", expect: "2 1"},
+  {icon: "⑬", title: "3D games ②: moving things", ui: true,
+   text: ["Games change things every frame: on_frame(fn(dt) { ... }) runs about 60 times a second and dt is the seconds since the last frame. Multiply speeds by dt so the game runs the same on every computer: spin3d(ring, 0, 120 * dt, 0) turns 120° per second.",
+          "shift3d(obj, dx, dy, dz) moves by an amount, key_down(\"w\") tells you if a key is held. camera_follow(s, player, 0, 3, 6) makes the camera ride 3 m above and 6 m behind the player. Press ▶ Try it, then W A S D."],
+   code: "let s = scene3d(body(), nil, 260)\nlet ground = plane(s, 30, 30, \"#2d3436\")\nlook3d(ground, {texture: \"checker\", repeat: 15})\nlet player = cube(s, 0.8, 0.8, 0.8, \"#00b894\")\nmove3d(player, 0, 0.4, 0)\nlet ring = torus(s, 0.6, 0.15, \"#fdcb6e\")\nmove3d(ring, 0, 1.2, -4)\ncamera_follow(s, player, 0, 3, 6)\non_frame(fn(dt) {\n  spin3d(ring, 0, 120 * dt, 0)\n  if key_down(\"a\") { shift3d(player, -4 * dt, 0, 0) }\n  if key_down(\"d\") { shift3d(player, 4 * dt, 0, 0) }\n  if key_down(\"w\") { shift3d(player, 0, 0, -4 * dt) }\n  if key_down(\"s\") { shift3d(player, 0, 0, 4 * dt) }\n})\nprint(\"Press W A S D to drive the green cube\")",
+   task: "Spin a cube twice with spin3d(c, 0, 45, 0), then print rot3d(c).y", starter: "let s = scene3d(body(), nil, 200)\nlet c = cube(s)\n", expect: "90"},
+  {icon: "⑭", title: "3D games ③: walking & collisions", ui: true,
+   text: ["fps_controls(s, {speed: 3}) turns the camera into a first-person player: W A S D walk, drag the mouse (or click to lock it, Esc frees it) to look, Shift runs, and a gamepad works too. solid3d(wall) makes a wall you cannot walk through.",
+          "Collisions: dist3d(a, b) is the distance between two objects or points (camera_get(s) is where the player is). hits3d(a, b) says if two objects' boxes touch; hits3d(a, \"coin\") finds any object tagged with tag3d(obj, \"coin\"). remove3d(obj) deletes, exists3d(obj) checks. A label() with the scene as parent floats on top: that is your HUD."],
+   code: "let s = scene3d(body(), nil, 300)\nlet ground = plane(s, 24, 24, \"#6ab04c\")\nlook3d(ground, {texture: \"grid\", repeat: 12})\nfor i in range(4) {\n  let wall = cube(s, 8, 2, 0.4, \"#b5653f\")\n  look3d(wall, {texture: \"bricks\"})\n  turn3d(wall, 0, i * 90, 0)\n  move3d(wall, sin(i * 90 * PI / 180) * 4, 1, cos(i * 90 * PI / 180) * 4)\n  solid3d(wall)\n}\nlet coin = torus(s, 0.3, 0.1, \"#ffd23f\")\nmove3d(coin, 2, 1, -2)\nlet msg = label(s, \"Find the coin! W A S D walk, drag to look\")\nsetstyle(msg, \"color\", \"white\")\nsetstyle(msg, \"padding\", \"8px 12px\")\ncamera3d(s, 0, 1.6, 2)\nfps_controls(s, {speed: 3})\non_frame(fn(dt) {\n  spin3d(coin, 0, 180 * dt, 0)\n  if exists3d(coin) and dist3d(coin, camera_get(s)) < 1 {\n    remove3d(coin)\n    settext(msg, \"Got the coin! 🪙\")\n  }\n})",
+   task: "Make two cubes a and b, move b to (0.5, 0, 0) and print hits3d(a, b)", starter: "let s = scene3d(body(), nil, 200)\n", expect: "true"},
+  {icon: "⑮", title: "3D games ④: a finished mini-game", ui: true,
+   text: ["Everything together: a HUD label, a 30 second timer, gems to collect with dist3d, a win and a lose ending, and a best score saved with store_get / store_set. Walk with W A S D and grab all six gems!",
+          "Make it yours: more gems, moving gems (shift3d in on_frame), walls with solid3d, a sky3d sunset. Save it in the ⚡ editor as a page, or publish it to the Kugel Store (kompass://store) for everyone. For bigger examples open kompass://games3d and the 3D games in the store."],
+   code: "# Gem Grab: collect all 6 gems in 30 seconds\nlet s = scene3d(body(), nil, 320)\nsky3d(s, \"#1e3c72\", \"#ffb88c\")\nlet ground = plane(s, 30, 30, \"#4b7f52\")\nlook3d(ground, {texture: \"grid\", repeat: 15})\nlet hud = label(s, \"\")\nsetstyle(hud, \"color\", \"white\")\nsetstyle(hud, \"font-size\", 18)\nsetstyle(hud, \"padding\", \"8px 12px\")\nlet gems = []\nfor i in range(6) {\n  let g = cone(s, 0.3, 0.6, \"#e84393\")\n  look3d(g, {glow: \"#5a0c34\", flat: true})\n  move3d(g, random(-10, 10), 0.8, random(-10, 10))\n  push(gems, g)\n}\ncamera3d(s, 0, 1.6, 12)\nfps_controls(s, {speed: 5})\nlet time_left = 30\nlet score = 0\nlet over = false\nlet best = store_get(\"gem_best\", 0)\non_frame(fn(dt) {\n  if over { return }\n  time_left -= dt\n  let me = camera_get(s)\n  let keep = []\n  for g in gems {\n    spin3d(g, 0, 90 * dt, 0)\n    if dist3d(g, me) < 1.2 {\n      remove3d(g)\n      score += 1\n    } else { push(keep, g) }\n  }\n  gems = keep\n  settext(hud, `💎 {score} / 6   ⏱ {round(time_left)} s   ★ best {best}`)\n  if len(gems) == 0 or time_left <= 0 {\n    over = true\n    fps_controls(s, false)\n    if score > best { store_set(\"gem_best\", score) }\n    if len(gems) == 0 { settext(hud, `You win! All gems in {round(30 - time_left)} s`) }\n    else { settext(hud, `Time's up: {score} gems`) }\n  }\n})",
+   task: "Write fn caught(d) that returns d < 1.2, then print caught(dist3d(vec3(0, 0, 0), vec3(1, 0, 0)))", starter: "fn caught(d) {\n  \n}\n", expect: "true"}
 ]
 
 let learn = load_data("learn_progress", {done: {}, tried: {}, last: 0})
@@ -777,11 +797,12 @@ fn page_learn(id, page) {
     let hero = col(m, "learn-hero")
     label(hero, "LEARN KAMPFSCRIPT", "eyebrow")
     heading(hero, "Script your own browser", "learn-title")
-    label(hero, "Eleven short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
+    label(hero, "Fifteen short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
     let extra = row(m, "chips")
     button(extra, "G Make Google page with KS", fn() { go("kompass://builder") }, "chip")
     button(extra, "🤖 For AIs: copy the whole language reference", fn() { go("kompass://learn/ai") }, "chip")
     button(extra, "🚀 Example: Spaceflight Sim in KampfScript", fn() { go("kompass://spaceflight") }, "chip")
+    button(extra, "🧊 New: 3D games in KampfScript", fn() { go("kompass://games3d") }, "chip")
     let vids = row(m, "video-row")
     video_slot(vids, 1, "Intro to KampfScript", "variables, print, if, loops")
     video_slot(vids, 2, "Functions, lists & the browser", "functions, lists/maps, and scripting the Kompass browser")
@@ -1095,6 +1116,9 @@ fn render_internal(id, url) {
   else if where == "store/publish" { page_publish(id, page) }
   else if startswith(where, "store/") { page_store_play(id, page, slice(where, 6)) }
   else if where == "spaceflight" { page_example(id, page, "spaceflight", "Spaceflight Sim") }
+  else if where == "maze3d" { page_example(id, page, "maze3d", "Coin Maze 3D") }
+  else if where == "runner3d" { page_example(id, page, "runner3d", "Kugel Runner 3D") }
+  else if where == "games3d" or where == "3d" { page_games3d(id, page) }
   else if where == "script" { if tabs[str(id)].title == "New tab" { set_tab_title(id, "Script page") } }
   else {
     set_tab_title(id, "Not found")
@@ -1264,7 +1288,9 @@ let QUICK = [
   ["⚙", "Settings", fn() { open_page("kompass://settings") }],
   ["📘", "Learn", fn() { open_page("kompass://learn") }],
   ["🔑", "Passwords", fn() { open_page("kompass://passwords") }],
-  ["G", "My page", fn() { open_page("kompass://builder") }]
+  ["G", "My page", fn() { open_page("kompass://builder") }],
+  ["⛶", "Fullscreen", fn() { toggle_fullscreen() }],
+  ["🧊", "3D games", fn() { open_page("kompass://games3d") }]
 ]
 fn quick_menu(x, y, on_web, link_url) {
   let m = popup(x, y, "quick-menu")
@@ -1313,6 +1339,33 @@ fn page_example(id, page, name, title) {
     let warn = row(page, "custom-error")
     label(warn, "kompass://" + name + ": " + r.error, "out-err")
   }
+}
+
+# ---------------------------------------------------------- v1.5.2 fullscreen (F11 / quick menu) — pages like YouTube go fullscreen by themselves, Esc leaves
+fn toggle_fullscreen() { fullscreen(not fullscreen()) }
+
+# ---------------------------------------------------------- kompass://games3d — 3D games made with KampfScript (v1.5.2)
+let GAMES3D = [
+  ["maze3d", "🪙", "Coin Maze 3D", "First-person maze: walk with W A S D, look with the mouse or a gamepad and collect every coin."],
+  ["runner3d", "🏃", "Kugel Runner 3D", "Lane runner: dodge blocks, jump bars, grab coins. Arrows / A D, Space to jump."]
+]
+fn page_games3d(id, page) {
+  set_tab_title(id, "3D games")
+  let c = col(page, "list-page")
+  heading(c, "🧊 3D games in KampfScript", "page-title")
+  label(c, "Kompass 1.5.2 can draw real 3D: scene3d, cube, sphere, plane, lights, a first-person camera with fps_controls, gamepads and collisions. These games are plain .ks files — open them in the ⚡ editor to see how they work, or ask an AI using kompass://learn/ai.", "muted")
+  for g in GAMES3D {
+    let gid = g[0]
+    let r = row(c, "store-card")
+    label(r, g[1], "store-icon")
+    let info = col(r)
+    label(info, g[2], "store-name")
+    label(info, g[3], "muted")
+    button(r, "▶ Play", fn() { go("kompass://" + gid) }, "pill")
+  }
+  let tip = col(c)
+  heading(tip, "Make your own", "")
+  codebox(tip, "let s = scene3d(body())\nlet box_ = cube(s, 1, 1, 1, \"#ff4500\")\nlet ground = plane(s, 20, 20, \"#3a7d44\")\ncamera3d(s, 0, 2, 5, 0, 0, 0)\non_frame(fn(dt) { spin3d(box_, 0, 90 * dt, 0) })")
 }
 
 # ---------------------------------------------------------- 🛒 kompass://store — the Kugel Store
@@ -1442,6 +1495,7 @@ on_key("ctrl+g", fn() { open_page("kompass://builder") })
 on_key("ctrl+shift+p", fn() { open_page("kompass://passwords") })
 on_key("f1", fn() { open_page("kompass://learn") })
 on_key("f12", fn() { if settings.devtools { ks_devtools() } })
+on_key("f11", fn() { toggle_fullscreen() })
 on_key("ctrl+shift+i", fn() { if settings.devtools { ks_devtools() } })
 on_key("ctrl+shift+j", fn() { tab_devtools(current) })
 

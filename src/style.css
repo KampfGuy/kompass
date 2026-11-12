@@ -405,3 +405,16 @@ body[data-theme="midnight"] .try-code { color:#d6e2ff; } body[data-theme="neon"]
 .store-code { min-height: 200px; font-family: 'Kompass Mono', monospace; }
 .store-msg { min-height: 20px; color: var(--accent, #c9a227); }
 .store-grid { align-items: stretch !important; }
+
+/* ---------- v1.5.2 fullscreen: F11 / menu (whole browser) and HTML5 fullscreen from pages */
+body.ks-fullscreen .ks-viewarea { position:fixed !important; inset:0 !important; width:auto !important; height:auto !important; margin:0 !important; border:0 !important; border-radius:0 !important; z-index:5000; }
+body.ks-webfs .ks-viewarea { background:#000; }
+body.ks-fullscreen #boot-error { z-index:5001; }
+.ks-fs-hint { position:fixed; top:22px; left:50%; transform:translateX(-50%); z-index:6000; background:rgba(16,16,16,.86); color:#fff; padding:9px 18px; border-radius:20px; font:14px "Kompass Sans", "Segoe UI", system-ui, sans-serif; pointer-events:none; animation:ks-fs-hint 2.8s ease forwards; }
+@keyframes ks-fs-hint { 0% { opacity:0; } 8% { opacity:1; } 80% { opacity:1; } 100% { opacity:0; } }
+
+/* ---------- v1.5.2 3D scenes (scene3d) — the WebGL canvas fills the box, KampfScript UI added to the scene floats on top (HUDs) */
+.ks-scene3d { position:relative; overflow:hidden; background:#000; user-select:none; }
+.ks-scene3d.fill { width:100%; height:100%; }
+.ks-scene3d > .ks-scene3d-gl { position:absolute; inset:0; width:100%; height:100%; display:block; outline:none; }
+.ks-scene3d > :not(.ks-scene3d-gl) { position:relative; z-index:1; }

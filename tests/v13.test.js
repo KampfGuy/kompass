@@ -55,7 +55,7 @@ const toK = (v) => Array.isArray(v) ? v.map(toK) : (v && typeof v === 'object') 
   assert(browser.includes('New in 1.3: games & apps') && browser.includes('kompass://spaceflight'));
   {
     const it = new K.Interpreter(); await it.run(browser.slice(browser.indexOf('let LESSONS = ['), browser.indexOf('let learn = load_data')));
-    const lessons = it.globals.get('LESSONS'); const l = lessons[lessons.length - 1];
+    const lessons = it.globals.get('LESSONS'); const l = lessons.find(x => x.m.get('title') === 'New in 1.3: games & apps');
     const r = stubRuntime(); await r.run(l.m.get('code')); for (let i = 0; i < 30; i++) await r.frame();
     assert(r.calls.draw_circle >= 30 && r.calls.on_frame === 1, 'lesson example animates');
     assert.strictEqual(await out(l.m.get('starter') + 'print(`next year: {age + 1}`)'), l.m.get('expect'));

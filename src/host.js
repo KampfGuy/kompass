@@ -267,6 +267,9 @@
       store_set: B(([k, v]) => { const j = JSON.stringify(toJS(v)); if (j.length > 200000) throw new KError('store_set(): value too big (max 200 KB)'); localStorage.setItem('ks-store:' + (opts.storeNs || '') + S(k), j); return true; }, 2, 2),
       print: B((a) => { opts.onPrint(a.map(S).join(' ')); return null; }, 0),
     };
+    // v1.5.2 3D games (src/kompass3d.js + local three.js): scene3d, cube, camera3d, fps_controls, gamepad ... part of the UI built-ins,
+    // so they work in sandboxed pages / Store games too and stop with the page like on_frame.
+    if (window.Kompass3D) Object.assign(ui, window.Kompass3D.builtins({ B, K, KError, KMap, KHandle, toK, S, N, make, cb, isFn, alive, visible, keyDown: (k) => KEYS.has(k) }));
 
     // ---------- tabs (real Chromium pages via sandboxed <webview>, or KampfScript-drawn internal pages)
     const tabs = new Map(); let nextId = 1; let viewArea = null; let tabHandler = null; let dblRight = null;
@@ -276,6 +279,22 @@
       cb(dblRight, 'double right-click')(x, y, !!p.web, p.link || '');
     });
     const fire = (ev, id, val) => { if (window.KompassDevtools) window.KompassDevtools.event(ev, id, val); if (tabHandler) cb(tabHandler, 'on_tab_event: ' + ev)(ev, id, val === undefined ? null : val); };
+    // v1.5.2 fullscreen: the whole browser (F11 / menu) and HTML5 fullscreen requested by pages (YouTube, Google Slides/Docs present, Maps...)
+    const FS = { browser: false, web: null, last: false }; let fsHandler = null;
+    function fsHint(text) {
+      const old = document.querySelector('.ks-fs-hint'); if (old) old.remove();
+      const d = document.createElement('div'); d.className = 'ks-fs-hint'; d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 2800);
+    }
+    function applyFs(fromNative) {
+      if (FS.web && !FS.web.wrap.isConnected) FS.web = null;
+      const on = FS.browser || !!FS.web;
+      document.body.classList.toggle('ks-fullscreen', on); document.body.classList.toggle('ks-webfs', !!FS.web);
+      for (const t of tabs.values()) t.wrap.classList.toggle('ks-fs-tab', FS.web === t);
+      if (!fromNative && window.native.setFullscreen) window.native.setFullscreen(on);
+      if (on !== FS.last) { FS.last = on; if (on) fsHint(FS.web ? 'Press Esc to exit full screen' : 'Press F11 or Esc to exit full screen'); if (fsHandler) cb(fsHandler, 'on_fullscreen')(on, FS.web ? 'page' : 'browser'); }
+    }
+    function exitWebFs() { const t = FS.web; FS.web = null; if (t && t.ready) t.wv.executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true).catch(() => {}); }
+    if (opts.withBrowser && window.native.onFullscreen) window.native.onFullscreen((on) => { if (!on && (FS.browser || FS.web)) { FS.browser = false; exitWebFs(); applyFs(true); } });
     const tab = (id, who) => { const t = tabs.get(id); if (!t) throw new KError(who + ': no tab with id ' + S(id)); return t; };
     function showWeb(t) { t.mode = 'web'; t.page.hidden = true; t.wv.hidden = false; }
     function showInternal(t, url) { t.mode = 'internal'; t.internalUrl = url; t.wv.hidden = true; t.page.hidden = false; t.page.replaceChildren(); t.page.scrollTop = 0; fire('url', t.id, url); fire('internal', t.id, url); fire('state', t.id); }
@@ -291,6 +310,8 @@
       wv.addEventListener('did-stop-loading', () => { fire('loading', t.id, false); fire('state', t.id); });
       wv.addEventListener('page-favicon-updated', (e) => fire('favicon', t.id, e.favicons && e.favicons[0] || ''));
       wv.addEventListener('did-fail-load', (e) => { if (e.isMainFrame && e.errorCode !== -3) fire('error', t.id, e.errorDescription + ' (' + e.errorCode + ')'); });
+      wv.addEventListener('enter-html-full-screen', () => { FS.web = t; applyFs(); });
+      wv.addEventListener('leave-html-full-screen', () => { if (FS.web === t) FS.web = null; applyFs(); });
       wv.addEventListener('dom-ready', () => { t.ready = true; if (t.pending) { const u = t.pending; t.pending = null; wv.loadURL(u); } });
       return wv;
     }
@@ -319,8 +340,10 @@
         return null;
       }, 2, 2),
       tab_page: B(([id]) => new KHandle('box', tab(id, 'tab_page()').page), 1, 1),
-      tab_select: B(([id]) => { for (const t of tabs.values()) t.wrap.hidden = t.id !== id; tab(id, 'tab_select()'); return null; }, 1, 1),
-      tab_close: B(([id]) => { const t = tab(id, 'tab_close()'); t.wrap.remove(); tabs.delete(id); return null; }, 1, 1),
+      tab_select: B(([id]) => { if (FS.web && FS.web.id !== id) { exitWebFs(); applyFs(); } for (const t of tabs.values()) t.wrap.hidden = t.id !== id; tab(id, 'tab_select()'); return null; }, 1, 1),
+      tab_close: B(([id]) => { const t = tab(id, 'tab_close()'); if (FS.web === t) exitWebFs(); t.wrap.remove(); tabs.delete(id); if (FS.last && !FS.browser) applyFs(); return null; }, 1, 1),
+      fullscreen: B(([on]) => { if (on !== undefined && on !== null) { const v = K.truthy(on); if (!v) exitWebFs(); FS.browser = v; applyFs(); } return FS.browser || !!FS.web; }, 0, 1),
+      on_fullscreen: B(([f]) => { fsHandler = f; return null; }, 1, 1),
       tab_back: B(([id]) => {
         const t = tab(id, 'tab_back()');
         if (t.mode === 'internal') { if (t.everWeb && t.url) { showWeb(t); fire('url', t.id, t.url); fire('state', t.id); } return null; }
@@ -440,6 +463,13 @@
       builtins: opts.sandbox ? Object.assign(sandboxUi(), opts.extra || {}) : Object.assign({}, ui, opts.withBrowser ? browser : {}, services, opts.extra || {}),
     });
     interp.keyHandlers = keyHandlers;
+    // Esc leaves fullscreen (page fullscreen first, then browser fullscreen); F11 toggles even with an older browser.ks
+    interp.fsKey = (k) => {
+      if (!opts.withBrowser) return false;
+      if (k === 'escape' && (FS.web || FS.browser)) { if (FS.web) exitWebFs(); else FS.browser = false; applyFs(); return true; }
+      if (k === 'f11' && !keyHandlers.has('f11')) { if (FS.web) exitWebFs(); FS.browser = !(FS.browser || FS.last); applyFs(); return true; }
+      return false;
+    };
     interp.openTabFromPage = (u) => { if (tabHandler) cb(tabHandler, 'on_tab_event: popup')('popup', 0, u); };
     interp.nativeNames = new Set(Object.keys(Object.assign({}, ui, browser, services, opts.extra || {})));
     return interp;
@@ -467,6 +497,7 @@
   window.KompassRuntime = { makeRuntime, toK, toJS };
   function handleKey(k, ev) {
     if (k === 'ctrl+shift+k') { if (ev) ev.preventDefault(); window.KompassEditor.toggle(); return; }
+    if ((k === 'escape' || k === 'f11') && main.fsKey(k)) { if (ev) ev.preventDefault(); return; }
     const f = main.keyHandlers.get(k); if (f) { if (ev) ev.preventDefault(); R.run(() => main.invoke(f, [], 'key: ' + k)); }
   }
   window.addEventListener('keydown', (e) => handleKey(keyName(e), e));
