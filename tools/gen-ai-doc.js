@@ -22,6 +22,8 @@ function realBuiltins() {
   // v1.5.2 3D built-ins live in src/kompass3d.js (merged into the UI built-ins by host.js)
   const k3 = fs.readFileSync(path.join(ROOT, 'src', 'kompass3d.js'), 'utf8');
   groups.three = [...k3.slice(k3.indexOf('    const api = {')).matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
+  // Kompass VR: vr_* built-ins (also in src/kompass3d.js)
+  groups.vr = [...k3.slice(k3.indexOf('    const vrApi = {'), k3.indexOf('    const api = {')).matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
   groups.editor = [...fs.readFileSync(path.join(ROOT, 'src', 'editor.js'), 'utf8').matchAll(/^\s{8}([a-z_]+): \{ fn:/gm)].map(m => m[1]);  // print is also a host override
   return { core, ...groups };
 }
@@ -44,7 +46,7 @@ async function runEx(code) {
 async function build() {
   const real = realBuiltins();
   const missing = [];
-  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page', 'three']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
+  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page', 'three', 'vr']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
   if (missing.length) throw new Error('builtin-docs.js is missing: ' + missing.join(', '));
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
   const L = [];
@@ -142,6 +144,11 @@ async function build() {
     'for i in range(5) {', '  let g = cube(s, 0.6, 0.6, 0.6, "#ffd23f")', '  look3d(g, {glow: "#664400"})', '  move3d(g, i * 3 - 6, 1, -10)', '  push(goals, g)', '}',
     'let hud = label(s, "")', 'camera3d(s, 0, 1.6, 4)', 'fps_controls(s, {speed: 5})', 'let score = 0',
     'on_frame(fn(dt) {', '  let me = camera_get(s)', '  let keep = []', '  for g in goals {', '    spin3d(g, 0, 90 * dt, 0)', '    if dist3d(g, me) < 1 {', '      remove3d(g)', '      score += 1', '    } else { push(keep, g) }', '  }', '  goals = keep', '  settext(hud, `Score: {score}`)', '  let pad = gamepad()', '  if pad.connected and pad.a { print("A pressed") }', '})', '```', '');
+  sec('7.9 VR games (' + real.vr.length + ', Kompass VR) — immersive WebXR with a desktop simulator', 'vr',
+    'A 3D scene can become an immersive VR world. `vr_setup(s)` gives the scene a player rig: a head and two hands (controllers). `vr_start(s)` (call it from a button or key press) enters immersive VR where WebXR `immersive-vr` exists (Meta Quest Browser, desktop Chrome with a PC headset). In the Kompass VR app (Android WebView has no WebXR) `vr_start` hands the current Kugel Store game to the Quest Browser and returns "browser". Everywhere else it returns "flat" and the **desktop simulator** runs: the mouse moves the right hand (hold Shift for the left), left button = trigger, right button = grip (or F / G), E / R = A / B, W A S D = left stick, arrows = right stick, wheel = reach. Hands report position, rotation, pointing direction, VELOCITY (m/s — swing detection) and buttons; `vr_attach` glues a racket or sword to a hand. In VR the HTML HUD is not visible: draw scores on a `canvas` and show it in the world with `panel3d`.');
+  P('```ks', '# swing a sword in VR (or with the mouse on a normal screen)', 'let s = scene3d(body())', 'vr_setup(s)', 'let blade = cube(s, 0.04, 0.04, 1, "#55ddff")', 'vr_attach(s, blade, "right")', 'move3d(blade, 0, 0, -0.5)',
+    'let target = sphere(s, 0.25, "#ffaa00")', 'move3d(target, 0, 1.4, -1.2)', 'button(s, "Enter VR", fn() { print(vr_start(s)) })',
+    'on_frame(fn(dt) {', '  let h = vr_hand(s, "right")', '  if h.speed > 2 and dist3d(blade, target) < 0.6 {', '    vr_haptic(s, "right", 0.8, 50)', '    move3d(target, random(-5, 5) / 10, 1.4, -1.2)', '  }', '})', '```', '');
   P('## 8. Kompass architecture', '',
     '- Kompass is an Electron app. `src/main.js` (main process) owns windows, files, the ad blocker, the password vault and context menus. `src/host.js` (renderer) runs `browser.ks` with the KampfScript interpreter and implements the native built-ins above. Web pages run in sandboxed Chromium `<webview>`s.',
     '- **browser.ks is the whole browser UI**: tab strip, toolbar, bookmarks, internal pages (`kompass://home`, `search`, `history`, `bookmarks`, `settings`, `about`, `learn`, `learn/ai`, `builder`, `passwords`, `page/<name>`), shortcuts. Users edit it with Ctrl+Shift+K → "★ browser.ks"; Settings → Reset restores the shipped one.',

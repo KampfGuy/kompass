@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "id": "kugel-tennis-vr",
+      "icon": "🎾",
+      "title": "Kugel Tennis VR",
+      "author": "KampfGuy",
+      "description": "Wii-Tennis for VR: swing your controller like a racket vs a CPU Kugel. Auto-run to the ball, aim by swinging across, real tennis scoring. Kompass VR / WebXR; mouse on a screen.",
+      "tags": ["vr", "game", "3d", "sports"]
+    },
+    {
+      "id": "kugel-gorillas-vr",
+      "icon": "🦍",
+      "title": "Kugel Gorillas VR",
+      "author": "KampfGuy",
+      "description": "Gorilla-Tag-style arm locomotion: push off the ground, rocks and trees with your hands to run, jump and climb. You're IT: tag all 4 gorillas. Best time saved. Keyboard on a screen.",
+      "tags": ["vr", "game", "3d", "action"]
+    },
+    {
+      "id": "kugel-saber-vr",
+      "icon": "⚔",
+      "title": "Kugel Saber VR",
+      "author": "KampfGuy",
+      "description": "Beat-Saber-style: slice red blocks left and blue blocks right, the way the arrows point. Avoid bombs, build combos up to 8x. Best score saved. Mouse on a screen.",
+      "tags": ["vr", "game", "3d", "rhythm"]
+    }
+  ]
+}
