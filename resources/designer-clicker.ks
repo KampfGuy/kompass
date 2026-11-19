@@ -1,0 +1,22 @@
+# Clicker game: click the Kugel to earn points, buy helpers that click for you. Saved automatically.
+let page = col(body())
+setstyle(page, "align-items", "center")
+setstyle(page, "padding", "30px")
+setstyle(page, "font-family", "Segoe UI, sans-serif")
+let pts = store_get("pts", 0)
+let helpers = store_get("helpers", 0)
+let title = heading(page, "Kugel Clicker")
+let info = label(page, "")
+let ball = button(page, "🟠", fn() { pts += 1 + helpers; draw() })
+setstyle(ball, "font-size", "90px")
+setstyle(ball, "background", "none")
+setstyle(ball, "border", "none")
+let buy = button(page, "", fn() { let cost = 10 + helpers * 15; if pts >= cost { pts -= cost; helpers += 1; draw() } })
+fn draw() {
+  settext(info, str(pts) + " points · " + str(helpers) + " helpers")
+  settext(buy, "Buy a helper (" + str(10 + helpers * 15) + " points)")
+  store_set("pts", pts)
+  store_set("helpers", helpers)
+}
+every_ms(1000, fn() { pts += helpers; draw() })
+draw()

@@ -403,6 +403,10 @@
       store_code: B(async ([id]) => toK(await window.native.store.code(S(id))), 1, 1),
       store_publish: B(async ([t, d, a, code]) => toK(await window.native.store.publish({ title: S(t), description: S(d), author: S(a), code: S(code) })), 4, 4),
       publish_draft: B(() => { const d = window.__ksPublishDraft || null; window.__ksPublishDraft = null; return toK(d); }, 0, 0),
+      // 1.8 Kugel Mail (separate Windows app) from the sidebar
+      kugel_mail_status: B(() => toK(window.native.kmail ? window.native.kmail.status() : { installed: false, windows: false, status: 'idle' }), 0, 0),
+      kugel_mail_launch: B(() => toK(window.native.kmail ? window.native.kmail.launch() : { ok: false, error: 'not available' }), 0, 0),
+      kugel_mail_install: B(async () => toK(window.native.kmail ? await window.native.kmail.install() : { status: 'error', error: 'not available' }), 0, 0),
       read_resource: B(([n]) => window.native.readResource(S(n)), 1, 1),
       copy_text: B(([t]) => { window.native.copyText(S(t)); return true; }, 1, 1),
       save_text_file: B(async ([name, t]) => (await window.native.saveTextFile(S(name), S(t))) || '', 2, 2),
@@ -417,9 +421,13 @@
           open_url: B(([u]) => call('open', [S(u)]), 1, 1),
           engine: B(() => { const e = hs.m.get('engine'); return e === undefined || e === null ? 'kugel' : S(e); }, 0, 0),
           sleep: B(() => null, 1, 1), input: B(() => '', 0, 1),
+          // 1.8: pages / store games can go fullscreen (the page fills the screen, Esc or F11 leaves)
+          fullscreen: B(([on]) => { if (on !== undefined && on !== null) { const v = K.truthy(on); if (!v) exitWebFs(); FS.browser = v; applyFs(); } return FS.browser || !!FS.web; }, 0, 1),
         };
-        el(stage, 'run_page()').replaceChildren();
+        const stEl = el(stage, 'run_page()'); if (stEl.__ksPageRt) { try { stEl.__ksPageRt.stop(); } catch (e) {} }   // 1.8: re-running a page stops the old one (its on_frame etc.)
+        stEl.replaceChildren();
         const sb = makeRuntime({ sandbox: true, rootHandle: stage, maxSteps: 5000000, storeNs: ns ? String(S(ns)).replace(/[^a-z0-9_-]/gi, '').slice(0, 48) + '/' : '', onPrint: (x) => { if (out.length < 500) out.push(x); call('print', [x]); }, onError: (e) => { out.push('✖ ' + e.message); console.warn('[page error] ' + e.message); call('error', [e.message]); }, extra });
+        stEl.__ksPageRt = sb;
         try { const r = await R.run(() => sb.run(S(code))); return toK({ ok: true, output: out, error: '', line: 0, steps: r.steps }); }
         catch (e) { return toK({ ok: false, output: out, error: e.message, line: e.line || 0, steps: sb.totalSteps }); }
       }, 2, 4),

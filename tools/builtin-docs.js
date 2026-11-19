@@ -183,6 +183,9 @@ module.exports = {
     save_text_file: ['save_text_file(default_name, text) -> path|""', 'Save dialog, then write the text file.'],
     run_page: ['run_page(code, stage, handlers?, storage_ns?) -> {ok, output, error, line, steps}', 'Run a user page (builder / store) isolated, drawing into stage; handlers: {search, lucky, open, engine, print, error}; storage_ns keeps its store_get/store_set separate.'],
     store_index: ['store_index() -> {ok, entries, source, error}', 'Kugel Store catalog from github.com/KampfGuy/kugel-store (offline copy if unreachable). entries: [{id, title, author, description, tags, icon}].'],
+    kugel_mail_status: ['kugel_mail_status() -> {installed, path, version, status, progress, error}', 'Is the Kugel Mail Windows app installed? (sidebar; status/progress while installing).'],
+    kugel_mail_launch: ['kugel_mail_launch() -> {ok, path, error}', 'Start the installed Kugel Mail app.'],
+    kugel_mail_install: ['kugel_mail_install() -> status', 'One-click download of the pinned Kugel Mail release exe (SHA-512 checked before it can run).'],
     store_code: ['store_code(id) -> {ok, code, error}', 'Download one Kugel Store program (run it with run_page, never directly).'],
     store_publish: ['store_publish(title, description, author, code) -> {url, copied}', 'Open a prefilled GitHub issue in the system browser to submit code to the Kugel Store (no token needed; big code goes to the clipboard).'],
     publish_draft: ['publish_draft() -> {title, code} or nil', 'The code the ⚡ editor sent to kompass://store/publish (read once).'],
@@ -278,6 +281,7 @@ module.exports = {
     lucky: ['lucky(text)', 'Builder/home pages: "I\'m Feeling Lucky" — jump to the top result.'],
     open_url: ['open_url(url)', 'Builder/home pages: open a URL.'],
     engine: ['engine() -> string', 'Builder/home pages: "kugel", "google" or "duckduckgo".'],
+    fullscreen: ['fullscreen(on?) -> bool', 'Pages / store games: fill the whole screen (true) or leave (false); F11 or Esc also leaves.'],
   },
   // v1.7 app built-ins (src/host-apps.js) — everywhere the UI built-ins work (pages, Kugel Store apps)
   apps: {
@@ -306,6 +310,13 @@ module.exports = {
     sound: ['sound(name, volume?)', 'Play a built-in synthesised sound effect; names from sound_names().'],
     sound_names: ['sound_names() -> list', 'The built-in sound effects: pop, click, jump, coin, hit, laser, boom, ...'],
     file_save: ['file_save(name, text_or_data_url) -> {ok, path?}', 'Save a file through the normal Windows "Save as" box (the user chooses where). Allowed endings: .ks .txt .json .csv .md .obj .gltf .glb .png .jpg .svg .html .kmodel .kblocks .kblocks3d .wav; data: URLs are saved as binary.'],
+    canvas_filter: ['canvas_filter(c, name, amount?)', 'Apply an image filter to the whole canvas: grayscale, sepia, invert, blur, brightness, contrast, saturate, hue.'],
+    canvas_copy: ['canvas_copy(c, x, y, w, h) -> url', 'A region of a canvas as a PNG data URL (selections, sprites, thumbnails).'],
+    gif_encode: ['gif_encode(frames, w, h, delay_ms?, loop?) -> url', 'Animated GIF data URL from a list of canvases / data:image URLs (max 600 frames, 1024 px).'],
+    canvas_record: ['canvas_record(c, seconds, fps?) -> url', 'Record what a canvas shows for some seconds as a WebM video data URL.'],
+    zip_create: ['zip_create({name: text or data URL, ...}, compress?) -> url', 'Make a ZIP file (data URL); .pptx and .xlsx files are ZIPs of XML.'],
+    zip_read: ['zip_read(url) -> {name: text or data URL}', 'Read a ZIP data URL (from file_open): text files as text, images as data URLs.'],
+    xml_parse: ['xml_parse(text) -> {tag, attrs, children, text} | nil', 'Parse XML into nested maps (namespaced tags like "a:t" kept).'],
     file_open: ['file_open(extensions?) -> {ok, name, text|data} | nil', 'Let the user pick a file in the normal "Open" box (e.g. ["obj", "glb"]); nil if cancelled. Binary files come back as a data: URL.'],
   },
   // v1.7 3D modelling built-ins (src/kompass3d-model.js) — the Kugel 3D Modeler is built from these

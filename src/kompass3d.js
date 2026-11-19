@@ -449,6 +449,6 @@
     const modelApi = root.Kompass3DModel ? root.Kompass3DModel.builtins({ B, K, KError, KMap, KHandle, toK, S, N, T, sc, ob, addObj, color, vec, readCam, isMap, opt, cb, isFn, size }) : {};
     return Object.assign(api, vrApi, modelApi);
   }
-  root.Kompass3D = { builtins, probeXR, version: '1.7.0', vrNames: ['vr_supported', 'vr_available', 'vr_setup', 'vr_start', 'vr_stop', 'vr_mode', 'vr_rig', 'vr_head', 'vr_hands', 'vr_hand', 'vr_attach', 'vr_haptic', 'panel3d', 'world3d'] };
+  root.Kompass3D = { builtins, probeXR, version: '1.8.0', vrNames: ['vr_supported', 'vr_available', 'vr_setup', 'vr_start', 'vr_stop', 'vr_mode', 'vr_rig', 'vr_head', 'vr_hands', 'vr_hand', 'vr_attach', 'vr_haptic', 'panel3d', 'world3d'] };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Kompass3D;
 })(typeof window !== 'undefined' ? window : globalThis);

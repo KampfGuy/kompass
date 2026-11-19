@@ -37,6 +37,11 @@ contextBridge.exposeInMainWorld('native', {
     read: (n) => ipcRenderer.sendSync('kompass:model-read', n),
     remove: (n) => ipcRenderer.sendSync('kompass:model-delete', n),
   },
+  kmail: {
+    status: () => ipcRenderer.sendSync('kompass:kmail-status'),
+    launch: () => ipcRenderer.sendSync('kompass:kmail-launch'),
+    install: () => ipcRenderer.invoke('kompass:kmail-install'),
+  },
   store: {
     index: () => ipcRenderer.invoke('kompass:store-index'),
     code: (id) => ipcRenderer.invoke('kompass:store-code', id),

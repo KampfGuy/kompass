@@ -498,3 +498,34 @@ body.ks-fullscreen #boot-error { z-index:5001; }
 .kb-pholder .ks-canvas { position:absolute; left:0; top:0; }
 .kb-overlay { cursor:crosshair; }
 .kapp [hidden] { display:none !important; }
+
+/* ---------------- v1.8 left sidebar: Kugel Game Designer / Kugel Design / Kugel Work */
+.mainrow { flex:1; min-height:0; gap:0; align-items:stretch; }
+.mainrow > .view { flex:1; min-width:0; }
+.sidebar { width:224px; flex:0 0 224px; background:var(--bar); border-top:1px solid var(--line); border-right:1px solid var(--line); overflow-y:auto; overflow-x:hidden; padding:6px 0 0; gap:2px; }
+.sidebar.rail { width:52px; flex-basis:52px; }
+.sidebar.rail .sb-text, .sidebar.rail .sb-caret, .sidebar.rail .sb-note { display:none; }
+.sb-sec { gap:1px; padding:0 6px 6px; }
+.sb-head, .sb-item { display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:transparent; border:0; color:inherit; padding:6px 8px; border-radius:8px; cursor:pointer; font:inherit; min-height:30px; }
+.sb-head { font-weight:700; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--acc); }
+.sb-item { font-size:13px; }
+.sb-item:hover, .sb-head:hover { background:rgba(127,127,127,.16); }
+.sb-item.active { background:color-mix(in srgb, var(--acc) 22%, transparent); box-shadow:inset 3px 0 0 var(--acc); }
+.sb-ico { width:22px; flex:0 0 22px; text-align:center; font-size:16px; }
+.sb-text { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-caret { opacity:.6; font-size:11px; }
+.sb-body { gap:1px; }
+.sb-note { font-size:11px; color:var(--muted); padding:2px 10px; }
+.sb-foot { margin-top:auto; padding:6px; gap:4px; border-top:1px solid var(--line); position:sticky; bottom:0; background:var(--bar); }
+.sidebar.rail .sb-foot { flex-direction:column; }
+.sb-foot-btn { background:transparent; border:1px solid var(--line); color:inherit; border-radius:8px; padding:4px 8px; cursor:pointer; }
+body.ks-fullscreen .sidebar { display:none !important; }
+/* fullscreen page stage (Game Designer test / kompass://play): only the stage shows */
+body.ks-fullscreen .stage-fs { position:fixed !important; inset:0 !important; z-index:6000; background:#000; margin:0 !important; padding:0 !important; border-radius:0 !important; }
+body.ks-fullscreen .stage-fs > .bld-pane-head, body.ks-fullscreen .stage-fs > .play-tools { display:none !important; }
+body.ks-fullscreen .stage-fs > .bld-stage, body.ks-fullscreen .stage-fs > .app-stage { position:absolute; inset:0; height:auto !important; width:auto !important; border:0 !important; border-radius:0 !important; }
+.play-wrap { position:relative; height:100%; }
+.play-wrap > .app-stage { height:100%; }
+.play-tools { position:absolute; top:8px; right:10px; gap:6px; z-index:20; opacity:.55; }
+.play-tools:hover { opacity:1; }
+.sidebar[hidden] { display:none !important; }

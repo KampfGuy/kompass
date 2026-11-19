@@ -280,6 +280,40 @@ ipcMain.handle('kompass:file-open', async (_e, exts) => {
   if (APP_TEXT_EXT.includes(ext)) out.text = buf.toString('utf8'); else out.data = 'data:' + (MIME[ext] || 'application/octet-stream') + ';base64,' + buf.toString('base64');
   return out;
 });
+
+// ---------------- v1.8 Kugel Mail from the sidebar: launch it if it's there, else a one-click download of the pinned
+// release exe (fixed URL, SHA-512 checked before it is ever run). Nothing else can be downloaded or started this way.
+const KMAIL = { ver: '1.0.0', file: 'Kugel-Mail-1.0.0-portable.exe',
+  url: 'https://github.com/KampfGuy/kompass/releases/download/kugel-mail-v1.0.0/Kugel-Mail-1.0.0-portable.exe',
+  sha512: 'ef67d95e464f4b75cd09f900d2d4cd269db65fd03a83c8f0720c94e172426d1ba437acf98059f40c9c0ab278858a510550dd1a9d24448f5fd828aac9fa669ca1' };
+const kmailState = { status: 'idle', progress: 0, error: '' };
+function kmailCandidates() {
+  const dirs = [path.join(DATA, 'apps'), app.getPath('downloads'), path.dirname(process.execPath), process.env.PORTABLE_EXECUTABLE_DIR || ''].filter(Boolean);
+  return dirs.map((d) => path.join(d, KMAIL.file));
+}
+function kmailFind() { for (const f of kmailCandidates()) { try { if (fs.statSync(f).size > 1e6) return f; } catch (e) {} } return null; }
+function kmailInfo() { const f = kmailFind(); return Object.assign({ installed: !!f, path: f || '', version: KMAIL.ver, windows: process.platform === 'win32' }, kmailState); }
+ipcMain.on('kompass:kmail-status', (e) => { e.returnValue = kmailInfo(); });
+ipcMain.on('kompass:kmail-launch', (e) => {
+  const f = kmailFind(); if (!f) { e.returnValue = { ok: false, error: 'Kugel Mail is not installed yet' }; return; }
+  if (process.env.KOMPASS_KMAIL_DRYRUN) { e.returnValue = { ok: true, path: f, dryrun: true }; return; }
+  try { require('child_process').spawn(f, [], { detached: true, stdio: 'ignore' }).unref(); e.returnValue = { ok: true, path: f }; } catch (err) { e.returnValue = { ok: false, error: String(err.message || err) }; }
+});
+ipcMain.handle('kompass:kmail-install', async () => {
+  if (kmailState.status === 'downloading') return kmailInfo();
+  const dir = path.join(DATA, 'apps'); fs.mkdirSync(dir, { recursive: true }); const dest = path.join(dir, KMAIL.file), part = dest + '.part';
+  Object.assign(kmailState, { status: 'downloading', progress: 0, error: '' });
+  try {
+    const url = process.env.KOMPASS_KMAIL_URL || KMAIL.url; const want = process.env.KOMPASS_KMAIL_SHA512 || KMAIL.sha512;
+    const r = await fetch(url, { redirect: 'follow' }); if (!r.ok) throw new Error('download failed (HTTP ' + r.status + ')');
+    const total = +r.headers.get('content-length') || 0; const h = require('crypto').createHash('sha512'); const out = fs.createWriteStream(part); let got = 0;
+    for await (const chunk of r.body) { h.update(chunk); out.write(chunk); got += chunk.length; if (total) kmailState.progress = Math.round(got * 100 / total); if (got > 300 * 1024 * 1024) throw new Error('too big'); }
+    await new Promise((res) => out.end(res));
+    if (h.digest('hex') !== want) { fs.rmSync(part, { force: true }); throw new Error('the download did not match its SHA-512 checksum, so it was deleted'); }
+    fs.renameSync(part, dest); Object.assign(kmailState, { status: 'done', progress: 100 });
+  } catch (err) { try { fs.rmSync(part, { force: true }); } catch (e) {} Object.assign(kmailState, { status: 'error', error: String(err.message || err) }); }
+  return kmailInfo();
+});
 const MODELS = path.join(DATA, 'models');
 const modelName = (n) => { const s = String(n || '').trim(); return /^[A-Za-z0-9 _-]{1,40}$/.test(s) ? s : null; };
 const modelFile = (n, ext) => path.join(MODELS, n + '.' + ext);

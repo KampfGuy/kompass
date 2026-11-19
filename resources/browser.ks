@@ -9,12 +9,12 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.7.0"
+let VERSION = "1.8.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
 let DEFAULTS = {engine: "kugel", adblock: true, home: HOME, theme: "brass", accent: "",
-  bookmarks_bar: true, devtools: true, video1_url: "", video2_url: "", home_ks: ""}
+  bookmarks_bar: true, devtools: true, video1_url: "", video2_url: "", home_ks: "", sidebar: "open", sb_fold: {}}
 let settings = load_data("settings", {})
 for k in keys(DEFAULTS) { if settings[k] == nil { settings[k] = DEFAULTS[k] } }
 if settings.home == "kampf://home" { settings.home = HOME }
@@ -60,6 +60,8 @@ settip(plus, "New tab (Ctrl+T)")
 
 let bar = row(ui, "toolbar")
 let navs = row(bar, "navgroup")
+let sb_btn = button(navs, "☰", fn() { toggle_sidebar() }, "nav sb-toggle")
+settip(sb_btn, "Sidebar: Kugel Game Designer, Design, Work (Ctrl+B)")
 let back_btn = button(navs, "‹", fn() { tab_back(current) }, "nav")
 let fwd_btn = button(navs, "›", fn() { tab_forward(current) }, "nav")
 let reload_btn = button(navs, "↻", fn() { tab_reload(current) }, "nav")
@@ -70,7 +72,7 @@ let address = textbox(omni, "Search with Kugel or type a URL", fn(t) { go(t) }, 
 let star = button(omni, "☆", fn() { toggle_bookmark() }, "star")
 let tools = row(bar, "toolgroup")
 let yt = button(tools, "▶", fn() { go("https://www.youtube.com/") }, "tool")
-let gp_btn = button(tools, "G  Make Google page with KS", fn() { open_page("kompass://builder") }, "tool gtool")
+let gp_btn = button(tools, "🎮  Game Designer", fn() { open_page("kompass://builder") }, "tool gtool")
 let learn_btn = button(tools, "📘", fn() { open_page("kompass://learn") }, "tool")
 let ed_btn = button(tools, "⚡", fn() { open_editor() }, "tool")
 let dt_btn = button(tools, "{ }", fn() { ks_devtools() }, "tool")
@@ -81,7 +83,7 @@ settip(reload_btn, "Reload (F5)")
 settip(home_btn, "Home")
 settip(star, "Bookmark this page (Ctrl+D)")
 settip(yt, "YouTube (Ctrl+Y)")
-settip(gp_btn, "Make Google page with KS (kompass://builder)")
+settip(gp_btn, "Kugel Game Designer — make games and pages (kompass://builder, Ctrl+G)")
 settip(learn_btn, "Learn KampfScript (kompass://learn)")
 settip(ed_btn, "KampfScript editor & console (Ctrl+Shift+K)")
 settip(dt_btn, "KampfScript DevTools (F12 / Ctrl+Shift+I)")
@@ -96,7 +98,10 @@ let gnote = row(ui, "google-note")
 show(gnote, false)
 let bmbar = row(ui, "bookmarks")
 show(bmbar, settings.bookmarks_bar)
-let view = box(ui, "view")
+# v1.8: the left sidebar (Kugel Game Designer / Kugel Design / Kugel Work) sits beside the tab view
+let mainrow = row(ui, "mainrow")
+let side = col(mainrow, "sidebar")
+let view = box(mainrow, "view")
 view_area(view)
 let status = label(ui, "Ready", "status")
 
@@ -159,6 +164,7 @@ fn refresh_toolbar() {
   enable(fwd_btn, tab_can_forward(current))
   if is_bookmarked(u) { settext(star, "★") } else { settext(star, "☆") }
   set_window_title(t.title + " — Kompass")
+  sb_mark(u)
 }
 
 # ---------------------------------------------------------- URLs & search
@@ -349,7 +355,7 @@ fn page_default_home(id, page) {
   button(r, "Google", fn() { tab_navigate(id, "https://www.google.com/search?q=" + url_encode(gettext(box_))) }, "chip")
   button(r, "DuckDuckGo", fn() { tab_navigate(id, "https://duckduckgo.com/?q=" + url_encode(gettext(box_))) }, "chip")
   button(r, "YouTube", fn() { tab_navigate(id, "https://www.youtube.com/results?search_query=" + url_encode(gettext(box_))) }, "chip")
-  let mk = button(c, "G   Make Google page with KS  →", fn() { go("kompass://builder") }, "make-gp")
+  let mk = button(c, "🎮   Kugel Game Designer  →", fn() { go("kompass://builder") }, "make-gp")
   settip(mk, "Build your own Google-style start page in KampfScript, then set it as your home page")
   let tiles = row(c, "tiles")
   quick_link(tiles, "▶", "YouTube", "https://www.youtube.com/")
@@ -359,7 +365,7 @@ fn page_default_home(id, page) {
   quick_link(tiles, "◐", "DuckDuckGo", "https://duckduckgo.com/")
   quick_link(tiles, "⟲", "History", "kompass://history")
   let feats = row(c, "features")
-  feature_card(feats, "G", "Make Google page with KS", "Build your own search home page", fn() { go("kompass://builder") })
+  feature_card(feats, "🎮", "Kugel Game Designer", "Make games and your own home page", fn() { go("kompass://builder") })
   feature_card(feats, "🛒", "Kugel Store", "Play games & apps people made", fn() { go("kompass://store") })
   feature_card(feats, "📘", "Learn KampfScript", "Lessons, videos & exercises", fn() { go("kompass://learn") })
   feature_card(feats, "⚙", "Settings", "Themes, search, privacy", fn() { go("kompass://settings") })
@@ -578,8 +584,8 @@ fn page_settings(id, page) {
   let s5 = set_card(c, "⚡", "KampfScript", "kampfscript")
   let r7 = set_row(s5, "Learn KampfScript", "Lessons with runnable examples, exercises and tutorial videos")
   button(r7, "📘 Open kompass://learn", fn() { go("kompass://learn") }, "pill")
-  let r7b = set_row(s5, "Make Google page with KS", "Design your own search home page in KampfScript · home page now: " + home_desc())
-  button(r7b, "G Open builder", fn() { go("kompass://builder") }, "pill")
+  let r7b = set_row(s5, "Kugel Game Designer", "Make games and your own home page in KampfScript · home page now: " + home_desc())
+  button(r7b, "🎮 Open Game Designer", fn() { go("kompass://builder") }, "pill")
   button(r7b, "↺ Restore default home", fn() { restore_default_home(); tab_reload(id) }, "pill ghost")
   let r7c = set_row(s5, "KampfScript for AIs", "One complete, copy-friendly language reference to paste into an AI assistant")
   button(r7c, "🤖 Open kompass://learn/ai", fn() { go("kompass://learn/ai") }, "pill ghost")
@@ -799,7 +805,7 @@ fn page_learn(id, page) {
     heading(hero, "Script your own browser", "learn-title")
     label(hero, "Fifteen short lessons. Every example runs right here — press ▶ Try it, change the code, try again. Solve the small exercise at the end of each lesson to fill your compass.", "learn-lead")
     let extra = row(m, "chips")
-    button(extra, "G Make Google page with KS", fn() { go("kompass://builder") }, "chip")
+    button(extra, "🎮 Kugel Game Designer", fn() { go("kompass://builder") }, "chip")
     button(extra, "🤖 For AIs: copy the whole language reference", fn() { go("kompass://learn/ai") }, "chip")
     button(extra, "🚀 Example: Spaceflight Sim in KampfScript", fn() { go("kompass://spaceflight") }, "chip")
     button(extra, "🧊 New: 3D games in KampfScript", fn() { go("kompass://games3d") }, "chip")
@@ -847,7 +853,7 @@ fn page_learn(id, page) {
   label(side, "More", "learn-more-head")
   let more1 = row(side, "learn-item learn-extra")
   label(more1, "G", "learn-item-num")
-  label(more1, "Make Google page with KS", "learn-item-title")
+  label(more1, "Kugel Game Designer", "learn-item-title")
   on_click(more1, fn() { go("kompass://builder") })
   let more2 = row(side, "learn-item learn-extra")
   label(more2, "🤖", "learn-item-num")
@@ -888,14 +894,17 @@ fn code_runner(parent, code, with_ui, expect, on_pass) {
 }
 
 
-# ---------------------------------------------------------- G kompass://builder — Make Google page with KS
-# Your pages are KampfScript programs saved in builder.json. They run in an isolated interpreter
-# (run_page) with the UI + styling built-ins and a small page API: search, lucky, open_url, engine.
+# ---------------------------------------------------------- 🎮 kompass://builder — Kugel Game Designer (was "Make Google page with KS")
+# Your games and pages are KampfScript programs saved in builder.json (same file as before 1.8, so old pages keep working).
+# They run in an isolated interpreter (run_page) with the UI, canvas, 3D and app built-ins plus a small page API.
 let TEMPLATES = [
-  {name: "Classic Google", file: "builder-classic.ks", desc: "Coloured logo, search box, two buttons, tiles"},
-  {name: "Dark mode", file: "builder-dark.ks", desc: "Gradient background, your own name as logo"},
-  {name: "Minimal", file: "builder-minimal.ks", desc: "One word and a search box"},
-  {name: "Retro portal", file: "builder-retro.ks", desc: "90s neon, clock and random tips"}
+  {name: "2D game", file: "designer-2d.ks", desc: "Canvas game: arrow keys, stars, enemies, best score", kind: "game"},
+  {name: "3D game", file: "designer-3d.ks", desc: "First-person 3D: walk, look, collect coins", kind: "game"},
+  {name: "Clicker", file: "designer-clicker.ks", desc: "Click, buy helpers, saved automatically", kind: "game"},
+  {name: "Classic Google", file: "builder-classic.ks", desc: "Coloured logo, search box, two buttons, tiles", kind: "page"},
+  {name: "Dark mode", file: "builder-dark.ks", desc: "Gradient background, your own name as logo", kind: "page"},
+  {name: "Minimal", file: "builder-minimal.ks", desc: "One word and a search box", kind: "page"},
+  {name: "Retro portal", file: "builder-retro.ks", desc: "90s neon, clock and random tips", kind: "page"}
 ]
 let builder = load_data("builder", {pages: [], current: "", live: true})
 if builder.pages == nil { builder.pages = [] }
@@ -903,6 +912,11 @@ if builder.live == nil { builder.live = true }
 fn save_builder() { save_data("builder", builder) }
 
 fn template_code(i) { return read_resource(TEMPLATES[i].file) }
+fn template_index(file) {
+  let i = 0
+  for t in TEMPLATES { if t.file == file { return i }; i += 1 }
+  return 0
+}
 fn find_builder_page(name) {
   for p in builder.pages { if p.name == name { return p } }
   return nil
@@ -945,11 +959,21 @@ fn unique_name(base) {
   return n
 }
 
+
+# fullscreen for a page stage: the stage alone fills the screen; Esc / F11 leaves (on_fullscreen tells us)
+let fs_listeners = []
+on_fullscreen(fn(on, kind) { for f in fs_listeners { f(on) } })
+fn stage_fullscreen(wrap) {
+  addstyle(wrap, "stage-fs")
+  fullscreen(true)
+  push(fs_listeners, fn(on) { if not on { removestyle(wrap, "stage-fs") } })
+}
+
 fn page_builder(id, page) {
-  set_tab_title(id, "Make Google page with KS")
+  set_tab_title(id, "Kugel Game Designer")
   if len(builder.pages) == 0 {
-    push(builder.pages, {name: "My Google page", code: template_code(0)})
-    builder.current = "My Google page"
+    push(builder.pages, {name: "My first game", code: template_code(0), kind: "game"})
+    builder.current = "My first game"
     save_builder()
   }
   let cur = find_builder_page(builder.current)
@@ -958,13 +982,14 @@ fn page_builder(id, page) {
   let wrap = col(page, "bld-page")
   let head = row(wrap, "bld-head")
   let t = row(head, "bld-title")
-  colorletters(t, "G", ["#4285f4"], "bld-g")
-  heading(t, "Make Google page with KS", "bld-h")
-  let name_box = textbox(head, "page name", nil, "bld-name")
+  label(t, "🎮", "bld-g")
+  heading(t, "Kugel Game Designer", "bld-h")
+  let name_box = textbox(head, "game name", nil, "bld-name")
   settext(name_box, cur.name)
   let acts = row(head, "bld-actions")
   let msg = label(wrap, "", "bld-msg")
   let presets = row(wrap, "bld-presets")
+  let more = row(wrap, "bld-presets")
   let mine = row(wrap, "bld-mine")
   let split_ = row(wrap, "bld-split")
   let left = col(split_, "bld-left")
@@ -978,28 +1003,31 @@ fn page_builder(id, page) {
   let out = col(left, "bld-out")
   let right = col(split_, "bld-right")
   let rhead = row(right, "bld-pane-head")
-  label(rhead, "Live preview", "bld-pane-title")
-  label(rhead, "search / lucky open a new tab here · engine: " + settings.engine, "muted")
+  label(rhead, "Test", "bld-pane-title")
+  label(rhead, "click the game to give it the keyboard", "muted")
+  let fsb = button(rhead, "⛶ Fullscreen", fn() { run_preview(); stage_fullscreen(right) }, "seg")
+  settip(fsb, "Play the preview fullscreen (F11 / Esc to leave)")
   let stage = box(right, "bld-stage")
 
   fn say(s) { settext(msg, s) }
   fn run_preview() {
     clear(out)
-    let r = run_page(gettext(editor), stage, page_handlers(id, true))
+    let r = run_page(gettext(editor), stage, page_handlers(id, true), "designer")
     for line in r.output { label(out, line, "out-line") }
     if r.ok { label(out, "✔ ran in " + str(r.steps) + " steps", "out-ok") } else { label(out, "✖ " + r.error, "out-err") }
     return r.ok
   }
   fn store() {
     let nm = trim(gettext(name_box))
-    if nm == "" { nm = unique_name("My Google page") }
-    if nm != cur.name and find_builder_page(nm) != nil { say("A page named \"" + nm + "\" already exists"); return false }
+    if nm == "" { nm = unique_name("My game") }
+    if nm != cur.name and find_builder_page(nm) != nil { say("A game named \"" + nm + "\" already exists"); return false }
     if settings.home_ks == cur.name and nm != cur.name { settings.home_ks = nm; save_settings() }
     cur.name = nm
     cur.code = gettext(editor)
     builder.current = nm
     save_builder()
     draw_mine()
+    draw_sidebar()
     return true
   }
   fn load_page(p) {
@@ -1013,7 +1041,7 @@ fn page_builder(id, page) {
   }
   fn draw_mine() {
     clear(mine)
-    label(mine, "My pages:", "bld-row-label")
+    label(mine, "My games & pages:", "bld-row-label")
     for p in builder.pages {
       let pp = p
       let star_ = ""
@@ -1023,23 +1051,31 @@ fn page_builder(id, page) {
     }
   }
 
-  button(acts, "▶ Run", fn() { run_preview() }, "pill")
+  button(acts, "▶ Play", fn() { if store() { new_tab("kompass://play/" + url_encode(cur.name)) } }, "pill")
   button(acts, "💾 Save", fn() { if store() { say("Saved \"" + cur.name + "\"") } }, "pill ghost")
   button(acts, "＋ New", fn() {
     store()
-    let p = {name: unique_name("My Google page"), code: template_code(0)}
+    let p = {name: unique_name("My game"), code: template_code(0), kind: "game"}
     push(builder.pages, p)
     load_page(p)
-    say("New page from the Classic Google template")
+    draw_sidebar()
+    say("New game from the 2D game template")
   }, "pill ghost")
   button(acts, "🗑 Delete", fn() {
-    if len(builder.pages) < 2 { say("Keep at least one page (edit it instead)"); return }
+    if len(builder.pages) < 2 { say("Keep at least one game (edit it instead)"); return }
     if not confirm("Delete \"" + cur.name + "\"?") { return }
     remove(builder.pages, indexof(map(builder.pages, fn(p) { return p.name }), cur.name))
     if settings.home_ks == cur.name { restore_default_home() }
     load_page(builder.pages[0])
+    draw_sidebar()
   }, "pill ghost")
-  button(acts, "⌂ Set as my home page", fn() {
+  button(acts, "🌍 Publish to Kugel Store", fn() {
+    if not store() { return }
+    if not run_preview() { say("Fix the error first — published games must run cleanly"); return }
+    pub_draft = {title: cur.name, code: cur.code}
+    go("kompass://store/publish")
+  }, "pill gp-home-btn")
+  button(acts, "⌂ Home page", fn() {
     if not store() { return }
     if not run_preview() { say("Fix the error first — your home page must run cleanly"); return }
     settings.home_ks = cur.name
@@ -1047,20 +1083,14 @@ fn page_builder(id, page) {
     save_settings()
     draw_mine()
     say("⌂ \"" + cur.name + "\" is now your home page (new tabs, ⌂ and start-up)")
-  }, "pill gp-home-btn")
-  button(acts, "🌍 Publish", fn() {
-    if not store() { return }
-    if not run_preview() { say("Fix the error first — published pages must run cleanly"); return }
-    pub_draft = {title: cur.name, code: cur.code}
-    go("kompass://store/publish")
   }, "pill ghost")
-  button(acts, "↺ Restore default", fn() { restore_default_home(); draw_mine(); say("Home page is the default Kompass start page again") }, "pill ghost")
+  button(acts, "↺ Default home", fn() { restore_default_home(); draw_mine(); say("Home page is the default Kompass start page again") }, "pill ghost")
 
   label(presets, "Templates:", "bld-row-label")
   let ti = 0
   for tp in TEMPLATES {
     let idx = ti
-    let b = button(presets, tp.name, fn() {
+    let b = button(presets, (tp.kind == "game" and "🎮 " or "📄 ") + tp.name, fn() {
       settext(editor, template_code(idx))
       run_preview()
       say("Loaded the \"" + TEMPLATES[idx].name + "\" template — 💾 Save to keep it")
@@ -1068,13 +1098,44 @@ fn page_builder(id, page) {
     settip(b, tp.desc)
     ti += 1
   }
-  link(presets, "📘 Lesson", fn() { learn.last = 8; save_learn(); go("kompass://learn") }, "bld-link")
-  link(presets, "🤖 Reference", fn() { go("kompass://learn/ai") }, "bld-link")
+  label(more, "Blocks & lessons:", "bld-row-label")
+  let kb = button(more, "🧩 Kugel Blocks", fn() { go("kompass://store/kugel-blocks") }, "chip")
+  settip(kb, "Make a 2D game from Scratch-style blocks, then export it as KampfScript")
+  let kb3 = button(more, "🎲 Kugel Blocks 3D", fn() { go("kompass://store/kugel-blocks-3d") }, "chip")
+  settip(kb3, "Make a 3D game from blocks (can use your Kugel 3D Modeler models)")
+  link(more, "📘 Games lesson", fn() { learn.last = 10; save_learn(); go("kompass://learn") }, "bld-link")
+  link(more, "🧊 3D lessons", fn() { learn.last = 11; save_learn(); go("kompass://learn") }, "bld-link")
+  link(more, "📄 Pages lesson", fn() { learn.last = 8; save_learn(); go("kompass://learn") }, "bld-link")
+  link(more, "🤖 Reference", fn() { go("kompass://learn/ai") }, "bld-link")
 
   on_input(editor, fn(code) { if builder.live { run_preview() } }, 450)
   draw_mine()
-  say("Home page now: " + home_desc())
+  say("Make a game, test it here, ▶ Play it in its own tab, publish it to the Kugel Store. Home page now: " + home_desc())
   run_preview()
+}
+
+# ---------------------------------------------------------- kompass://play/<name> — play one of your games / pages in its own tab
+fn page_play(id, page, name) {
+  let p = find_builder_page(name)
+  set_tab_title(id, name)
+  if p == nil {
+    let c = col(page, "list-page")
+    heading(c, "No game named \"" + name + "\"", "page-title")
+    button(c, "🎮 Open the Game Designer", fn() { go("kompass://builder") }, "pill")
+    return
+  }
+  let wrap = box(page, "play-wrap")
+  let stage = box(wrap, "app-stage")
+  let tools_ = row(wrap, "play-tools")
+  let fb = button(tools_, "⛶", fn() { stage_fullscreen(wrap) }, "pill ghost")
+  settip(fb, "Fullscreen (F11 / Esc to leave)")
+  let eb = button(tools_, "✎", fn() { builder.current = name; save_builder(); go("kompass://builder") }, "pill ghost")
+  settip(eb, "Edit in the Game Designer")
+  let r = run_page(p.code, stage, page_handlers(id, false), "designer")
+  if not r.ok {
+    let warn = row(page, "custom-error")
+    label(warn, name + ": " + r.error, "out-err")
+  }
 }
 
 # ---------------------------------------------------------- 🤖 kompass://learn/ai — KampfScript for AIs
@@ -1109,7 +1170,9 @@ fn render_internal(id, url) {
   else if where == "about" { page_about(id, page) }
   else if where == "learn" { page_learn(id, page) }
   else if where == "learn/ai" or where == "ai" { page_ai(id, page) }
-  else if where == "builder" { page_builder(id, page) }
+  else if where == "builder" or where == "designer" { page_builder(id, page) }
+  else if startswith(where, "play/") { page_play(id, page, url_decode(slice(where, 5))) }
+  else if where == "kugel-mail" { page_kugel_mail(id, page) }
   else if where == "passwords" { page_passwords(id, page) }
   else if startswith(where, "page/") { page_user(id, page, slice(where, 5)) }
   else if where == "store" { page_store(id, page) }
@@ -1289,7 +1352,7 @@ let QUICK = [
   ["⚙", "Settings", fn() { open_page("kompass://settings") }],
   ["📘", "Learn", fn() { open_page("kompass://learn") }],
   ["🔑", "Passwords", fn() { open_page("kompass://passwords") }],
-  ["G", "My page", fn() { open_page("kompass://builder") }],
+  ["🎮", "Game Designer", fn() { open_page("kompass://builder") }],
   ["⛶", "Fullscreen", fn() { toggle_fullscreen() }],
   ["🧊", "3D games", fn() { open_page("kompass://games3d") }]
 ]
@@ -1381,7 +1444,7 @@ fn page_store(id, page) {
   label(head, "Games & apps made with KampfScript — every one runs in a sandbox", "muted")
   let acts = row(c, "store-acts")
   button(acts, "🌍 Publish yours", fn() { go("kompass://store/publish") }, "pill")
-  button(acts, "G Make one in the builder", fn() { go("kompass://builder") }, "pill ghost")
+  button(acts, "🎮 Make one in the Game Designer", fn() { go("kompass://builder") }, "pill ghost")
   let find_ = textbox(acts, "Search the store", nil, "store-search")
   let info = label(c, "Loading the store…", "muted")
   let grid = row(c, "store-grid")
@@ -1479,6 +1542,150 @@ fn page_for_script(title) {
   return p
 }
 
+
+# ---------------------------------------------------------- v1.8 left sidebar
+# Kugel Game Designer: the designer, every Kugel Store game (live from the store index) and your own games / pages.
+# Kugel Design and Kugel Work: Kugel Store apps (run sandboxed) + Kugel Mail, a separate Windows app.
+let DESIGN_APPS = [
+  ["kugel-modeler", "🧊", "Kugel 3D Modeler", "Blender-style 3D modelling"],
+  ["kugel-paint", "🖌", "Kugel Paint", "Painting: layers, brushes, selections, filters"],
+  ["kugel-motion", "🎞", "Kugel Motion", "Animation: timeline, keyframes, onion skin, GIF / sprite sheets"],
+  ["kugel-vector", "✒", "Kugel Vector", "Vector graphics: shapes, pen, text, SVG"]
+]
+let WORK_APPS = [
+  ["mail", "✉", "Kugel Mail", "Email app for Windows (separate app)"],
+  ["kugel-prism", "🔷", "Kugel Prism", "Slides and presentations (.pptx)"],
+  ["kugel-notes", "🗒", "Kugel Notes", "Notes with folders, checklists and search"],
+  ["kugel-lattice", "▦", "Kugel Lattice", "Spreadsheets with formulas and charts (.xlsx)"],
+  ["kugel-arithmetricks", "🧮", "Kugel Arithmetricks", "Calculator: standard, scientific, programmer, converters"]
+]
+let sb_games = []
+let sb_items = []      # [url, button]
+let sb_loaded = false
+if settings.sb_fold == nil { settings.sb_fold = {} }
+
+fn app_ids() {
+  let ids = []
+  for a in DESIGN_APPS { push(ids, a[0]) }
+  for a in WORK_APPS { push(ids, a[0]) }
+  push(ids, "kugel-blocks")
+  push(ids, "kugel-blocks-3d")
+  push(ids, "kugel-mail")
+  return ids
+}
+fn sb_item(parent, icon, text, tip, url, f) {
+  let b = button(parent, "", f, "sb-item")
+  label(b, icon, "sb-ico")
+  label(b, text, "sb-text")
+  settip(b, text + " — " + tip)
+  if url != "" { push(sb_items, [url, b]) }
+  return b
+}
+fn sb_section(key, icon, title, draw_body) {
+  let sec = col(side, "sb-sec")
+  let folded = settings.sb_fold[key] == true
+  let h = button(sec, "", fn() { settings.sb_fold[key] = not folded; save_settings(); draw_sidebar() }, "sb-head")
+  label(h, icon, "sb-ico")
+  label(h, title, "sb-text")
+  label(h, folded and "▸" or "▾", "sb-caret")
+  settip(h, title)
+  if not folded or settings.sidebar == "rail" { draw_body(col(sec, "sb-body")) }
+}
+fn draw_sidebar() {
+  clear(side)
+  sb_items = []
+  show(side, settings.sidebar != "hidden")
+  togglestyle(side, "rail", settings.sidebar == "rail")
+  sb_section("games", "🎮", "Kugel Game Designer", fn(b) {
+    sb_item(b, "＋", "Game Designer", "make a game or page", "kompass://builder", fn() { open_page("kompass://builder") })
+    let mine = 0
+    for p in builder.pages {
+      let nm = p.name
+      sb_item(b, "★", nm, "your game / page — play it", "kompass://play/" + url_encode(nm), fn() { open_page("kompass://play/" + url_encode(nm)) })
+      mine += 1
+    }
+    if not sb_loaded { label(b, "Loading Kugel Store games…", "sb-note") }
+    for g in sb_games {
+      let gid = g.id
+      sb_item(b, g.icon, g.title, g.description, "kompass://store/" + gid, fn() { open_page("kompass://store/" + gid) })
+    }
+    sb_item(b, "🧊", "3D games", "bundled 3D examples", "kompass://games3d", fn() { open_page("kompass://games3d") })
+  })
+  sb_section("design", "🎨", "Kugel Design", fn(b) {
+    for a in DESIGN_APPS { let id_ = a[0]; sb_item(b, a[1], a[2], a[3], "kompass://store/" + id_, fn() { open_page("kompass://store/" + id_) }) }
+  })
+  sb_section("work", "💼", "Kugel Work", fn(b) {
+    for a in WORK_APPS {
+      let id_ = a[0]
+      if id_ == "mail" { sb_item(b, a[1], a[2], a[3], "kompass://kugel-mail", fn() { open_kugel_mail() }) }
+      else { sb_item(b, a[1], a[2], a[3], "kompass://store/" + id_, fn() { open_page("kompass://store/" + id_) }) }
+    }
+  })
+  let foot = row(side, "sb-foot")
+  let rb = button(foot, settings.sidebar == "rail" and "»" or "«", fn() { if settings.sidebar == "rail" { settings.sidebar = "open" } else { settings.sidebar = "rail" }; save_settings(); draw_sidebar() }, "sb-foot-btn")
+  settip(rb, "Narrow / wide sidebar")
+  let st = button(foot, "🛒", fn() { open_page("kompass://store") }, "sb-foot-btn")
+  settip(st, "Kugel Store")
+  if current != nil { sb_mark(tab_url(current)) }
+}
+fn sb_mark(u) {
+  if type(u) != "string" { u = "" }
+  for it in sb_items { togglestyle(it[1], "active", u == it[0] or startswith(u, it[0] + "?")) }
+}
+fn toggle_sidebar() {
+  if settings.sidebar == "hidden" { settings.sidebar = "open" } else { settings.sidebar = "hidden" }
+  save_settings()
+  draw_sidebar()
+}
+fn load_sidebar_games() {
+  let r = store_index()
+  sb_loaded = true
+  if r.ok {
+    let skip = app_ids()
+    sb_games = []
+    for e in r.entries {
+      if e.tags != nil and contains(e.tags, "game") and not contains(skip, e.id) { push(sb_games, e) }
+    }
+  }
+  draw_sidebar()
+}
+
+# Kugel Mail is its own Windows app (mail needs network access store programs don't get): launch it, or install it in one click
+fn open_kugel_mail() {
+  let st = kugel_mail_status()
+  if st.installed {
+    let r = kugel_mail_launch()
+    if r.ok { status_text("Started Kugel Mail (" + r.path + ")"); return }
+    status_text("Couldn't start Kugel Mail: " + r.error)
+  }
+  open_page("kompass://kugel-mail")
+}
+fn page_kugel_mail(id, page) {
+  set_tab_title(id, "Kugel Mail")
+  let c = col(page, "list-page")
+  heading(c, "✉ Kugel Mail", "page-title")
+  label(c, "A private email app for Windows (Gmail, Yahoo and any IMAP mail). It is a separate app because reading mail needs direct connections to your mail server, which Kugel Store programs aren't allowed to make. It never uses Google's sign-in page: Gmail works with an app password.", "muted")
+  let msg = label(c, "", "lesson-text")
+  let acts = row(c, "chips")
+  fn draw() {
+    clear(acts)
+    let st = kugel_mail_status()
+    if st.installed {
+      settext(msg, "✔ Installed: " + st.path)
+      button(acts, "▶ Open Kugel Mail", fn() { let r = kugel_mail_launch(); if r.ok { settext(msg, "✔ Started Kugel Mail") } else { settext(msg, "✖ " + r.error) } }, "pill")
+    } else if st.status == "downloading" {
+      settext(msg, "Downloading Kugel Mail " + st.version + "… " + str(st.progress) + "%")
+      after(700, fn() { if tab_url(id) == "kompass://kugel-mail" { draw() } })
+    } else {
+      if st.status == "error" { settext(msg, "✖ " + st.error) } else { settext(msg, "Not installed yet. One click downloads Kugel Mail " + st.version + " (about 101 MB) from GitHub; Kompass checks its SHA-512 checksum before it is ever run.") }
+      button(acts, "⬇ Install Kugel Mail", fn() { after(400, fn() { draw() }); let r = kugel_mail_install(); draw(); if r.installed { kugel_mail_launch() } }, "pill")
+    }
+    button(acts, "Release page", fn() { open_external("https://github.com/KampfGuy/kompass/releases/tag/kugel-mail-v1.0.0") }, "pill ghost")
+    button(acts, "Store page", fn() { go("kompass://store/kugel-mail") }, "pill ghost")
+  }
+  draw()
+}
+
 # ---------------------------------------------------------- keyboard shortcuts
 on_key("ctrl+t", fn() { new_tab(settings.home) })
 on_key("ctrl+w", fn() { close_tab(current) })
@@ -1497,10 +1704,13 @@ on_key("ctrl+shift+p", fn() { open_page("kompass://passwords") })
 on_key("f1", fn() { open_page("kompass://learn") })
 on_key("f12", fn() { if settings.devtools { ks_devtools() } })
 on_key("f11", fn() { toggle_fullscreen() })
+on_key("ctrl+b", fn() { toggle_sidebar() })
 on_key("ctrl+shift+i", fn() { if settings.devtools { ks_devtools() } })
 on_key("ctrl+shift+j", fn() { tab_devtools(current) })
 
 # ---------------------------------------------------------- start!
+draw_sidebar()
+after(300, fn() { load_sidebar_games() })
 show(dt_btn, settings.devtools)
 draw_bookmarks()
 new_tab(settings.home)

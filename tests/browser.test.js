@@ -18,7 +18,7 @@ Object.assign(builtins, {
   now_text: { fn: () => 'now', min: 0, max: 0 }, url_encode: { fn: ([s]) => encodeURIComponent(s), min: 1, max: 1 },
   read_script: { fn: ([n]) => n === 'demo' ? 'label(body(), "hi")' : '', min: 1, max: 1 },
   read_resource: { fn: ([n]) => { try { return fs.readFileSync(path.join(__dirname, '..', 'resources', n), 'utf8'); } catch (e) { return ''; } }, min: 1, max: 1 },
-  run_page: { fn: () => new K.KMap({ ok: true, output: [], error: '', line: 0, steps: 1 }), min: 2, max: 3 },
+  run_page: { fn: () => new K.KMap({ ok: true, output: [], error: '', line: 0, steps: 1 }), min: 2, max: 4 },
   pw_status: { fn: () => new K.KMap({ exists: true, unlocked: true, count: 1 }), min: 0, max: 0 },
   pw_list: { fn: () => [new K.KMap({ id: 'x', origin: 'https://a.com', username: 'bob', updated: 1 })], min: 0, max: 1 },
   update_state: { fn: () => new K.KMap({ status: 'idle', current: '1.4.0', latest: '', progress: 0, error: '', url: '', kind: 'portable', autoUpdate: true }), min: 0, max: 0 },
@@ -61,13 +61,13 @@ Object.assign(builtins, {
     null, null, null, null,   // 3D lessons need the 3D built-ins: tests/v153.test.js
   ];
   // custom home page: page_home runs the saved builder page via run_page
-  await it.repl('settings.home_ks = "My Google page"');
+  await it.repl('settings.home_ks = "My first game"');
   const before = calls.length; await it.invoke(handler, ['internal', 1, 'kompass://home']);
   assert(calls.slice(before).includes('colorletters') === false, 'custom home does not draw default page directly');
-  assert.strictEqual(K.show(await it.repl('home_desc()')), '"My Google page" (KampfScript)');
+  assert.strictEqual(K.show(await it.repl('home_desc()')), '"My first game" (KampfScript)');
   await it.repl('restore_default_home()');
   assert.strictEqual(K.show(await it.repl('settings.home_ks')), '');
-  assert.strictEqual(K.show(await it.repl('len(TEMPLATES)')), '4');
+  assert.strictEqual(K.show(await it.repl('len(TEMPLATES)')), '7');
   await it.repl('quick_menu(10, 10, false, "https://x.com")');
   assert(calls.includes('popup'), 'quick menu draws a popup');
   const lessons = await it.repl('LESSONS');
