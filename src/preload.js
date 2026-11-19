@@ -26,6 +26,17 @@ contextBridge.exposeInMainWorld('native', {
   readResource: (n) => ipcRenderer.sendSync('kompass:read-resource', n),
   copyText: (t) => ipcRenderer.sendSync('kompass:copy-text', t),
   saveTextFile: (n, t) => ipcRenderer.invoke('kompass:save-text-file', n, t),
+  // v1.7 apps: file dialogs + the shared 3D model library
+  files: {
+    save: (n, d) => ipcRenderer.invoke('kompass:file-save', n, d),
+    open: (exts) => ipcRenderer.invoke('kompass:file-open', exts),
+  },
+  models: {
+    save: (n, d) => ipcRenderer.sendSync('kompass:model-save', n, d),
+    list: () => ipcRenderer.sendSync('kompass:model-list'),
+    read: (n) => ipcRenderer.sendSync('kompass:model-read', n),
+    remove: (n) => ipcRenderer.sendSync('kompass:model-delete', n),
+  },
   store: {
     index: () => ipcRenderer.invoke('kompass:store-index'),
     code: (id) => ipcRenderer.invoke('kompass:store-code', id),

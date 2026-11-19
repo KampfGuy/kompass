@@ -440,6 +440,7 @@
       catch (e) {
         err = e;
         if (e instanceof ReturnSig) { err = null; return e.v; }
+        if (e && e.code === 'THREAD_EXIT') { err = null; return null; }   // v1.7: exit_thread() / a stopped spawn() thread is not an error
         if (this.opts.onError) this.opts.onError(e instanceof KError ? e : new KError(String(e && e.message || e)));
         else throw e;
       } finally {
@@ -608,7 +609,7 @@
       }
       if (f instanceof KFunc) {
         if (args.length > f.params.length) throw new KError((f.name || 'function') + '() takes ' + f.params.length + ' argument' + (f.params.length === 1 ? '' : 's') + ', got ' + args.length, line);
-        if (this.depth > 200) throw new KError('Too much recursion (more than 200 nested calls)', line);
+        if (this.depth > 200 + (this.extraDepth || 0)) throw new KError('Too much recursion (more than 200 nested calls)', line);
         const e = new Env(f.closure);
         f.params.forEach((p, i) => e.define(p, i < args.length ? args[i] : null));
         this.depth++;

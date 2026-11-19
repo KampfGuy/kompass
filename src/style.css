@@ -418,3 +418,83 @@ body.ks-fullscreen #boot-error { z-index:5001; }
 .ks-scene3d.fill { width:100%; height:100%; }
 .ks-scene3d > .ks-scene3d-gl { position:absolute; inset:0; width:100%; height:100%; display:block; outline:none; }
 .ks-scene3d > :not(.ks-scene3d-gl) { position:relative; z-index:1; }
+
+/* ---------- v1.7 app look for Kugel Store apps (Kugel 3D Modeler, Kugel Blocks, Kugel Blocks 3D): dark editor UI ---------- */
+.kapp { position:absolute; inset:0; display:flex; flex-direction:column; background:#1d2027; color:#e6e8ee; font:13px "Segoe UI", system-ui, sans-serif; overflow:hidden; gap:0; }
+.kapp-bar { display:flex; align-items:center; gap:4px; padding:5px 8px; background:#272b34; border-bottom:1px solid #353a46; flex-wrap:wrap; min-height:34px; padding-right:90px; }
+.kapp-title { font-weight:700; letter-spacing:.3px; margin-right:8px; color:#fff; white-space:nowrap; }
+.kapp-main { flex:1; display:flex; flex-direction:row; align-items:stretch; min-height:0; gap:0; }
+.kapp-bar.ks-row { align-items:center; }
+.kapp-panel { display:flex; flex-direction:column; gap:4px; padding:6px; background:#23262e; border-right:1px solid #353a46; overflow-y:auto; min-height:0; }
+.kapp-panel.right { border-right:0; border-left:1px solid #353a46; }
+.kapp-view { flex:1; position:relative; min-width:0; min-height:0; }
+.kapp-btn { background:#323743; color:#e6e8ee; border:1px solid #3e4452; border-radius:6px; padding:4px 9px; font:inherit; font-size:12.5px; cursor:pointer; white-space:nowrap; }
+.kapp-btn:hover { border-color:#ff8c1a; } .kapp-btn:active { transform:translateY(1px); }
+.kapp-btn.on { background:#ff8c1a; border-color:#ff8c1a; color:#1b1004; font-weight:600; }
+.kapp-btn.go { background:#2fa84f; border-color:#2fa84f; color:#fff; font-weight:700; }
+.kapp-btn.stop { background:#d9473f; border-color:#d9473f; color:#fff; font-weight:700; }
+.kapp-btn.wide { width:100%; text-align:left; }
+.kapp-sec { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:#9aa1b2; margin:6px 2px 2px; }
+.kapp-field { background:#15171c; color:#e6e8ee; border:1px solid #3e4452; border-radius:5px; padding:3px 6px; font:inherit; font-size:12.5px; min-width:0; }
+.kapp-item { padding:4px 8px; border-radius:5px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kapp-item:hover { background:#2d313b; } .kapp-item.on { background:#ff8c1a33; color:#ffb366; }
+.kapp-hud { position:absolute; left:8px; bottom:8px; background:rgba(15,17,21,.72); color:#e6e8ee; padding:4px 9px; border-radius:6px; font-size:12px; pointer-events:none; white-space:pre; }
+.kapp-tiny { font-size:11.5px; color:#9aa1b2; }
+.kapp-status { padding:3px 10px; background:#272b34; border-top:1px solid #353a46; font-size:11.5px; color:#aab0bf; white-space:nowrap; overflow:hidden; }
+.kapp-box { position:absolute; border:1px dashed #ff8c1a; background:rgba(255,140,26,.12); pointer-events:none; }
+.kapp-code { background:#15171c; color:#cfe3ff; font:12px "Kompass Mono", Consolas, monospace; white-space:pre; overflow:auto; padding:8px; border-radius:6px; }
+.kapp-card { background:#2a2e38; border:1px solid #3e4452; border-radius:8px; padding:8px; }
+.kapp .ks-slider { width:100%; }
+.kapp .ks-dropdown { background:#15171c; color:#e6e8ee; border:1px solid #3e4452; border-radius:5px; font:inherit; font-size:12.5px; padding:2px 4px; }
+.kapp .ks-check { font-size:12.5px; }
+/* Kugel Blocks (store apps) */
+.kb-name { width:150px; }
+.kb-cats { width:66px; flex:none; background:#23262e; border-right:1px solid #353a46; overflow-y:auto; padding:4px 0; display:flex; flex-direction:column; gap:0; }
+.kb-cat { align-items:center; padding:6px 2px; cursor:pointer; gap:1px; display:flex; flex-direction:column; }
+.kb-cat:hover { background:#2d313b; }
+.kb-cat-dot { font-size:18px; line-height:18px; color:#9aa1b2; }
+.kb-cat-label { font-size:10.5px; color:#cfd3dc; text-align:center; }
+.kb-pane { position:absolute; inset:0; }
+.kb-scroll { overflow:auto; padding:10px; background:#1d2027; }
+.kb-zoom { position:absolute; right:10px; bottom:10px; gap:4px; z-index:3; }
+.kb-right { width:400px; flex:none; }
+.kb-runbar { align-items:center; gap:6px; }
+.kb-coords { margin-left:auto; font-variant-numeric:tabular-nums; }
+.kb-stage { position:relative; width:384px; height:288px; flex:none; border-radius:6px; overflow:hidden; border:1px solid #353a46; background:#fff; }
+.kb-run { position:absolute; inset:0; z-index:2; background:#000; }
+.kb-props { gap:4px; }
+.kb-proprow { align-items:center; gap:5px; flex-wrap:wrap; }
+.kb-num { width:52px; }
+.kb-pname { width:120px; }
+.kb-sprhead { align-items:center; gap:4px; }
+.kb-tiles { flex-wrap:wrap; gap:6px; align-content:flex-start; }
+.kb-tile { width:76px; align-items:center; padding:4px; border-radius:7px; background:#2a2e38; border:2px solid transparent; cursor:pointer; gap:2px; display:flex; flex-direction:column; }
+.kb-tile.wide { width:auto; flex-direction:row; justify-content:flex-start; gap:8px; }
+.kb-tile:hover { border-color:#4b5263; } .kb-tile.on { border-color:#ff8c1a; background:#3a2f25; }
+.kb-thumb { width:56px; height:44px; object-fit:contain; }
+.kb-thumb.wide { width:96px; height:72px; }
+.kb-thumb-ph { width:56px; height:44px; text-align:center; font-size:30px; }
+.kb-tile-name { font-size:11.5px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kb-slotedit { font:12px "Segoe UI", system-ui, sans-serif; border:2px solid #ffab19; border-radius:6px; padding:0 4px; background:#fff; color:#222; outline:none; }
+.kb-menu { max-width:440px; }
+.kb-menu-list { display:flex; flex-direction:column; max-height:360px; overflow-y:auto; gap:1px; }
+.kb-menu-item { text-align:left; background:transparent; border:0; padding:5px 12px; border-radius:5px; cursor:pointer; font:inherit; color:inherit; }
+.kb-menu-item:hover { background:rgba(255,140,26,.22); }
+.kb-lib { max-width:560px; }
+.kb-libgrid { flex-wrap:wrap; gap:6px; max-height:420px; overflow-y:auto; }
+.kb-codeview { flex:1; user-select:text; }
+.kb-viewbar { align-items:center; gap:8px; margin-bottom:6px; }
+.kb-help { max-width:none; }
+.kb-h1 { font-size:22px; font-weight:700; color:#fff; margin:4px 0 8px; display:block; }
+.kb-h2 { font-size:15px; font-weight:700; color:#ffb366; margin:12px 0 4px; display:block; }
+.kb-p { display:block; line-height:1.5; margin:2px 0; color:#d5d9e2; max-width:760px; }
+.kb-looks { gap:12px; align-items:flex-start; }
+.kb-costumes { width:200px; flex:none; gap:6px; }
+.kb-paint { gap:6px; flex:1; min-width:0; }
+.kb-ptools { gap:4px; align-items:center; flex-wrap:wrap; }
+.kb-swatch { width:20px; height:20px; border-radius:5px; border:2px solid #3e4452; cursor:pointer; }
+.kb-swatch.on { border-color:#fff; }
+.kb-pholder { position:relative; flex:none; background-color:#fff; background-image:linear-gradient(45deg,#e6e8ee 25%,transparent 25%,transparent 75%,#e6e8ee 75%),linear-gradient(45deg,#e6e8ee 25%,transparent 25%,transparent 75%,#e6e8ee 75%); background-size:16px 16px; background-position:0 0,8px 8px; border:1px solid #3e4452; }
+.kb-pholder .ks-canvas { position:absolute; left:0; top:0; }
+.kb-overlay { cursor:crosshair; }
+.kapp [hidden] { display:none !important; }

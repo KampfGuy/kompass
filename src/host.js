@@ -236,7 +236,7 @@
       on_mouse: B(([x, f]) => {
         const e0 = el(x, 'on_mouse()'); if (!isFn(f)) throw new KError('on_mouse() needs a function like fn(e) { ... }');
         const btn = (b) => b === 2 ? 'right' : b === 1 ? 'middle' : 'left'; let moveQ = null;
-        const send = (type, ev, extra) => { const r = e0.getBoundingClientRect(); cb(f, 'mouse ' + type)(Object.assign({ type, x: ev.clientX - r.left, y: ev.clientY - r.top, button: btn(ev.button), shift: ev.shiftKey }, extra || {})); };
+        const send = (type, ev, extra) => { const r = e0.getBoundingClientRect(); cb(f, 'mouse ' + type)(Object.assign({ type, x: ev.clientX - r.left, y: ev.clientY - r.top, px: ev.clientX, py: ev.clientY, button: btn(ev.button), shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey }, extra || {})); };
         e0.addEventListener('mousedown', (ev) => { ev.stopPropagation(); send('down', ev); });
         window.addEventListener('mouseup', (ev) => { if (alive() && e0.isConnected) send('up', ev); });
         e0.addEventListener('mousemove', (ev) => { if (!moveQ) requestAnimationFrame(() => { const q = moveQ; moveQ = null; if (q) send('move', q); }); moveQ = ev; });
@@ -270,6 +270,8 @@
     // v1.5.2 3D games (src/kompass3d.js + local three.js): scene3d, cube, camera3d, fps_controls, gamepad ... part of the UI built-ins,
     // so they work in sandboxed pages / Store games too and stop with the page like on_frame.
     if (window.Kompass3D) Object.assign(ui, window.Kompass3D.builtins({ B, K, KError, KMap, KHandle, toK, S, N, make, cb, isFn, alive, visible, keyDown: (k) => KEYS.has(k) }));
+    // v1.7 app built-ins (src/host-apps.js): threads, run_app, images, sound, file dialogs — for Kugel Store apps and games
+    if (window.KompassApps) Object.assign(ui, window.KompassApps.builtins({ B, K, KError, KHandle, KMap, toK, S, N, cv, col, el, cb, isFn, alive, getInterp: () => interp, makeRuntime, R, opts }));
 
     // ---------- tabs (real Chromium pages via sandboxed <webview>, or KampfScript-drawn internal pages)
     const tabs = new Map(); let nextId = 1; let viewArea = null; let tabHandler = null; let dblRight = null;

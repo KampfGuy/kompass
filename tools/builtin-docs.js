@@ -101,7 +101,7 @@ module.exports = {
     stop_frame: ['stop_frame(id?)', 'Stop one on_frame loop (or all).'],
     key_down: ['key_down(key) -> bool', 'Is the key held right now? Names: "a".."z", "0".."9", "space", "left", "right", "up", "down", "shift", "control", "enter", "escape".'],
     on_keypress: ['on_keypress(fn(key))', 'fn(key) once per key press (ignored while typing in a text box). Same key names as key_down.'],
-    on_mouse: ['on_mouse(el, fn(e))', 'Mouse on an element/canvas: e = {type: "down"|"up"|"move"|"wheel", x, y, button: "left"|"right"|"middle", shift, dy (wheel: 1 or -1)}. x, y are relative to el.'],
+    on_mouse: ['on_mouse(el, fn(e))', 'Mouse on an element/canvas: e = {type: "down"|"up"|"move"|"wheel", x, y, px, py, button: "left"|"right"|"middle", shift, ctrl, dy (wheel: 1 or -1)}. x, y are relative to el; px, py are window coordinates (for popup()).'],
     every_ms: ['every_ms(ms, fn) -> timer', 'Repeat fn every ms (min 16); works in pages and stops with them.'],
     cancel_timer: ['cancel_timer(timer)', 'Stop an every_ms timer.'],
     // v1.3 form controls + storage

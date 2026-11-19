@@ -249,6 +249,55 @@ ipcMain.handle('kompass:save-text-file', async (_e, name, text) => {
   if (r.canceled || !r.filePath) return '';
   fs.writeFileSync(r.filePath, String(text)); return r.filePath;
 });
+// ---------------- v1.7 files + model library for KampfScript apps (Kugel 3D Modeler, Kugel Blocks ...)
+// file_save / file_open always go through the user's own Save / Open dialog (tests: KOMPASS_SAVE_DIR / KOMPASS_OPEN_FILE).
+const APP_SAVE_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'glb', 'png', 'jpg', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'wav'];
+const APP_TEXT_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'mtl'];
+const APP_OPEN_EXT = APP_TEXT_EXT.concat(['glb', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'wav', 'mp3']);
+const MIME = { glb: 'model/gltf-binary', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', wav: 'audio/wav', mp3: 'audio/mpeg' };
+function dataToBuffer(d) { const m = /^data:[^;,]*;base64,(.*)$/s.exec(d); return m ? Buffer.from(m[1], 'base64') : Buffer.from(d, 'utf8'); }
+ipcMain.handle('kompass:file-save', async (_e, name, data) => {
+  const base = safeName(String(name || 'file.txt')); const ext = (base.split('.').pop() || '').toLowerCase();
+  if (!APP_SAVE_EXT.includes(ext)) return { ok: false, error: 'file type not allowed' };
+  const buf = dataToBuffer(String(data || '')); if (buf.length > 60 * 1024 * 1024) return { ok: false, error: 'too big' };
+  let f;
+  if (process.env.KOMPASS_SAVE_DIR) f = path.join(process.env.KOMPASS_SAVE_DIR, base);
+  else { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('documents'), base), filters: [{ name: ext.toUpperCase() + ' file', extensions: [ext] }] }); if (r.canceled || !r.filePath) return { ok: false, error: 'cancelled' }; f = r.filePath; }
+  if (!APP_SAVE_EXT.includes((path.extname(f).slice(1) || '').toLowerCase())) f += '.' + ext;
+  fs.writeFileSync(f, buf); return { ok: true, path: f, name: path.basename(f), bytes: buf.length };
+});
+ipcMain.handle('kompass:file-open', async (_e, exts) => {
+  const want = (Array.isArray(exts) ? exts : []).map((x) => String(x).toLowerCase()).filter((x) => APP_OPEN_EXT.includes(x));
+  if (!want.length) return { ok: false, error: 'no allowed file types' };
+  let f;
+  if (process.env.KOMPASS_OPEN_FILE) f = process.env.KOMPASS_OPEN_FILE;
+  else { const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: want.map((x) => x.toUpperCase()).join(' / '), extensions: want }] }); if (r.canceled || !r.filePaths[0]) return { ok: false, error: 'cancelled' }; f = r.filePaths[0]; }
+  const ext = (path.extname(f).slice(1) || '').toLowerCase(); if (!want.includes(ext)) return { ok: false, error: 'wrong file type' };
+  const st = fs.statSync(f); if (st.size > 40 * 1024 * 1024) return { ok: false, error: 'file too big (max 40 MB)' };
+  const buf = fs.readFileSync(f); const out = { ok: true, name: path.basename(f), ext, bytes: buf.length };
+  if (APP_TEXT_EXT.includes(ext)) out.text = buf.toString('utf8'); else out.data = 'data:' + (MIME[ext] || 'application/octet-stream') + ';base64,' + buf.toString('base64');
+  return out;
+});
+const MODELS = path.join(DATA, 'models');
+const modelName = (n) => { const s = String(n || '').trim(); return /^[A-Za-z0-9 _-]{1,40}$/.test(s) ? s : null; };
+const modelFile = (n, ext) => path.join(MODELS, n + '.' + ext);
+function modelExt(d) { return d.startsWith('data:') ? 'glb' : /^\s*\{/.test(d) ? 'gltf' : 'obj'; }
+ipcMain.on('kompass:model-save', (e, n, d) => {
+  const name = modelName(n); d = String(d || ''); if (!name || !d) { e.returnValue = { ok: false, error: 'bad name or empty model' }; return; }
+  const buf = dataToBuffer(d); if (buf.length > 25 * 1024 * 1024) { e.returnValue = { ok: false, error: 'model too big (max 25 MB)' }; return; }
+  fs.mkdirSync(MODELS, { recursive: true }); for (const x of ['glb', 'gltf', 'obj']) { try { fs.unlinkSync(modelFile(name, x)); } catch (err) {} }
+  fs.writeFileSync(modelFile(name, modelExt(d)), buf); e.returnValue = { ok: true };
+});
+ipcMain.on('kompass:model-list', (e) => {
+  try { e.returnValue = fs.readdirSync(MODELS).filter((f) => /\.(glb|gltf|obj)$/.test(f)).map((f) => { const st = fs.statSync(path.join(MODELS, f)); return { name: f.replace(/\.(glb|gltf|obj)$/, ''), format: path.extname(f).slice(1), bytes: st.size, saved: st.mtimeMs }; }).sort((a, b) => b.saved - a.saved); }
+  catch (err) { e.returnValue = []; }
+});
+ipcMain.on('kompass:model-read', (e, n) => {
+  const name = modelName(n); let out = '';   // (set returnValue once: the first assignment already answers the renderer)
+  if (name) for (const x of ['glb', 'gltf', 'obj']) { const f = modelFile(name, x); if (fs.existsSync(f)) { const b = fs.readFileSync(f); out = x === 'glb' ? 'data:model/gltf-binary;base64,' + b.toString('base64') : b.toString('utf8'); break; } }
+  e.returnValue = out;
+});
+ipcMain.on('kompass:model-delete', (e, n) => { const name = modelName(n); let ok = false; if (name) for (const x of ['glb', 'gltf', 'obj']) { try { fs.unlinkSync(modelFile(name, x)); ok = true; } catch (err) {} } e.returnValue = ok; });
 ipcMain.on('kompass:video-file', (e, n) => { e.returnValue = findVideo(n); });
 ipcMain.on('kompass:videos-folder', e => { e.returnValue = videoDirs().join('  or  '); });
 ipcMain.on('kompass:open-videos-folder', () => { shell.openPath(path.join(DATA, 'videos')); });
@@ -815,5 +864,27 @@ if (process.env.KOMPASS_SHOTS160) {
     } catch (e) { console.log('[shots160] error', e && e.stack || e); report.error = String(e && e.stack || e); }
     fs.writeFileSync(path.join(out, pre + 'report.json'), JSON.stringify(report, null, 1));
     srv.close(); app.quit();
+  });
+}
+
+// ---------------- v1.7 scripted self-test: KOMPASS_TEST_SCRIPT=/path/test.js exports async ({ win, app, js, wait, shot, go, key, click }) => {}
+// (used by tests/apps170 runs: Kugel 3D Modeler, Kugel Blocks and Kugel Blocks 3D played through real mouse/keyboard input)
+if (process.env.KOMPASS_TEST_SCRIPT) {
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const out = process.env.KOMPASS_TEST_OUT || require('os').tmpdir();
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[test] wrote ' + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+  const key = async (k, mods) => { win.webContents.sendInputEvent({ type: 'keyDown', keyCode: k, modifiers: mods || [] }); win.webContents.sendInputEvent({ type: 'char', keyCode: k, modifiers: mods || [] }); await wait(30); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: k, modifiers: mods || [] }); await wait(60); };
+  const mouse = (type, x, y, button, mods) => win.webContents.sendInputEvent({ type, x: Math.round(x), y: Math.round(y), button: button || 'left', clickCount: 1, modifiers: mods || [] });
+  const click = async (x, y, button, mods) => { mouse('mouseMove', x, y, button, mods); await wait(30); mouse('mouseDown', x, y, button, mods); await wait(40); mouse('mouseUp', x, y, button, mods); await wait(80); };
+  const drag = async (x1, y1, x2, y2, button, steps, mods) => { mouse('mouseMove', x1, y1, button, mods); await wait(30); mouse('mouseDown', x1, y1, button, mods); for (let i = 1; i <= (steps || 10); i++) { mouse('mouseMove', x1 + (x2 - x1) * i / (steps || 10), y1 + (y2 - y1) * i / (steps || 10), button, mods); await wait(25); } mouse('mouseUp', x2, y2, button, mods); await wait(120); };
+  const errs = [];
+  app.whenReady().then(async () => {
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error|Uncaught|\[app\]/.test(msg)) { errs.push(msg); console.log('[test] CONSOLE', msg.slice(0, 400)); } });
+    let code = 0;
+    try { await wait(3000); await require(process.env.KOMPASS_TEST_SCRIPT)({ win, app, js, wait, shot, go, key, mouse, click, drag, errs, out, fs, path }); }
+    catch (e) { console.log('[test] FAILED', e && e.stack || e); code = 1; }
+    console.log('[test] console errors:', errs.length); app.exit(code);
   });
 }

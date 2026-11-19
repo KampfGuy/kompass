@@ -144,7 +144,7 @@
     }
     const size = (v, who, d) => { const n = N(v, who, d); if (n <= 0 || n > 100000) throw new KError(who + ': sizes must be between 0 and 100000'); return n; };
     const pickable = (st) => { st.scene.updateMatrixWorld(); st.camera.updateMatrixWorld(); return pickList(st); };
-    const pickList = (st) => [...st.objects].filter((h) => h.o.isMesh && h.o.visible).map((h) => h.o);
+    const pickList = (st) => [...st.objects].filter((h) => (h.o.isMesh || (h.o.isGroup && h.model)) && h.o.visible).map((h) => h.o);   // v1.7: loaded models (groups) are pickable too
     const hitOf = (x) => { if (!x) return null; let o = x.object; while (o && !o.userData.h) o = o.parent; return o ? toK({ obj: null, dist: +x.distance.toFixed(4), x: +x.point.x.toFixed(4), y: +x.point.y.toFixed(4), z: +x.point.z.toFixed(4) }) : null; };
     const withObj = (x, hit) => { if (!hit) return null; let o = x.object; while (o && !o.userData.h) o = o.parent; hit.m.set('obj', o.userData.h); hit.m.set('tag', o.userData.h.tag); return hit; };
 
@@ -445,8 +445,10 @@
       }, 1, 2),
       gamepad: B(([i]) => toK(pad(i === undefined || i === null ? -1 : Math.max(0, Math.floor(N(i, 'gamepad()'))))) || toK({ connected: false }), 0, 1),
     };
-    return Object.assign(api, vrApi);
+    // v1.7: modelling built-ins (editable meshes, orbit camera, import/export, model library) from src/kompass3d-model.js
+    const modelApi = root.Kompass3DModel ? root.Kompass3DModel.builtins({ B, K, KError, KMap, KHandle, toK, S, N, T, sc, ob, addObj, color, vec, readCam, isMap, opt, cb, isFn, size }) : {};
+    return Object.assign(api, vrApi, modelApi);
   }
-  root.Kompass3D = { builtins, probeXR, version: '1.6.0', vrNames: ['vr_supported', 'vr_available', 'vr_setup', 'vr_start', 'vr_stop', 'vr_mode', 'vr_rig', 'vr_head', 'vr_hands', 'vr_hand', 'vr_attach', 'vr_haptic', 'panel3d', 'world3d'] };
+  root.Kompass3D = { builtins, probeXR, version: '1.7.0', vrNames: ['vr_supported', 'vr_available', 'vr_setup', 'vr_start', 'vr_stop', 'vr_mode', 'vr_rig', 'vr_head', 'vr_hands', 'vr_hand', 'vr_attach', 'vr_haptic', 'panel3d', 'world3d'] };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Kompass3D;
 })(typeof window !== 'undefined' ? window : globalThis);
