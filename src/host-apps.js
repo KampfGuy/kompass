@@ -10,7 +10,9 @@
  * Nothing here gives a page access to the network, other files, tabs, passwords or settings. */
 (function (root) {
   'use strict';
-  const SAVE_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'glb', 'png', 'jpg', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'wav'];
+  const SAVE_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'glb', 'png', 'jpg', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'wav',
+    // v1.8 Kugel Design / Kugel Work apps
+    'gif', 'webm', 'pptx', 'xlsx', 'kpaint', 'kmotion', 'kvector', 'kprism', 'knotes', 'klattice'];
   const imgCache = new Map();   // data: URL -> HTMLImageElement
   function imageFor(url) {
     let im = imgCache.get(url); if (im) return im;
@@ -44,6 +46,85 @@
     drum: (a, t, v) => tone(a, t, 160, 0.25, 'sine', v * 1.2, 45),
     bell: (a, t, v) => { tone(a, t, 1320, 0.9, 'sine', v * 0.6); tone(a, t, 2640, 0.5, 'sine', v * 0.2); },
   };
+
+  // ---------- v1.8 helpers: CRC32 + ZIP (store/deflate via CompressionStream), GIF encoder, data URL bytes
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const b64ToBytes = (s) => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+  const bytesToB64 = (u) => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+  const dataBytes = (d) => { const m = /^data:[^,]*?(;base64)?,(.*)$/s.exec(d); if (!m) return null; return m[1] ? b64ToBytes(m[2]) : new TextEncoder().encode(decodeURIComponent(m[2])); };
+  async function streamBytes(u8, Stream, mode) { const s = new Blob([u8]).stream().pipeThrough(new Stream(mode)); return new Uint8Array(await new Response(s).arrayBuffer()); }
+  async function zipCreate(files, compress) {
+    const parts = [], central = []; let off = 0; const enc = new TextEncoder();
+    for (const [name, raw] of files) {
+      const nm = enc.encode(name); const data = typeof raw === 'string' && /^data:[^,]*;base64,/.test(raw) ? dataBytes(raw) : enc.encode(String(raw));
+      const crc = crc32(data); let body = data, method = 0;
+      if (compress && data.length > 64 && root.CompressionStream) { const z = await streamBytes(data, root.CompressionStream, 'deflate-raw'); if (z.length < data.length) { body = z; method = 8; } }
+      const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, method, true); h.setUint16(10, 0, true); h.setUint16(12, 0x21, true);
+      h.setUint32(14, crc, true); h.setUint32(18, body.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+      parts.push(new Uint8Array(h.buffer), nm, body);
+      const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, method, true); c.setUint16(12, 0, true); c.setUint16(14, 0x21, true);
+      c.setUint32(16, crc, true); c.setUint32(20, body.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), nm); off += 30 + nm.length + body.length;
+    }
+    const csize = central.reduce((a, x) => a + x.length, 0); const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+    const all = [...parts, ...central, new Uint8Array(e.buffer)]; const out = new Uint8Array(all.reduce((a, x) => a + x.length, 0)); let p = 0; for (const x of all) { out.set(x, p); p += x.length; }
+    return out;
+  }
+  const TEXTY = /\.(xml|rels|txt|json|csv|md|html|svg|ks|vml)$/i;
+  async function zipRead(u8, maxFiles) {
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); let e = -1;
+    for (let i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error('not a zip file');
+    const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = []; const dec = new TextDecoder();
+    for (let k = 0; k < n && k < maxFiles; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      const method = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+      const name = dec.decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+      if (name.endsWith('/')) continue;
+      const lnl = dv.getUint16(lo + 26, true), lxl = dv.getUint16(lo + 28, true); const raw = u8.subarray(lo + 30 + lnl + lxl, lo + 30 + lnl + lxl + csz);
+      let data; if (method === 0) data = raw; else if (method === 8 && root.DecompressionStream) data = await streamBytes(raw, root.DecompressionStream, 'deflate-raw'); else continue;
+      if (data.length > 20 * 1024 * 1024) continue;
+      const ext = (name.split('.').pop() || '').toLowerCase(); const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml' }[ext] || 'application/octet-stream';
+      out.push([name, TEXTY.test(name) ? dec.decode(data) : 'data:' + mime + ';base64,' + bytesToB64(data)]);
+    }
+    return out;
+  }
+  // GIF89a: one global palette (popular 5-bit colours of all frames, 255 + transparent), LZW per frame
+  function gifEncode(frames, w, h, delayCs, loop) {
+    const counts = new Map();
+    for (const f of frames) for (let i = 0; i < f.length; i += 16) { if (f[i + 3] < 128) continue; const k = ((f[i] >> 3) << 10) | ((f[i + 1] >> 3) << 5) | (f[i + 2] >> 3); counts.set(k, (counts.get(k) || 0) + 1); }
+    let pal = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 255).map(([k]) => [((k >> 10) & 31) << 3 | 4, ((k >> 5) & 31) << 3 | 4, (k & 31) << 3 | 4]);
+    if (!pal.length) pal = [[0, 0, 0]];
+    const TR = pal.length; pal.push([0, 0, 0]); while (pal.length < 256) pal.push([0, 0, 0]);
+    const cache = new Map(); const nearest = (r, g, b) => { const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); let v = cache.get(k); if (v !== undefined) return v; let bd = 1e9; v = 0; for (let i = 0; i < TR; i++) { const p = pal[i]; const d = (p[0] - r) ** 2 + (p[1] - g) ** 2 + (p[2] - b) ** 2; if (d < bd) { bd = d; v = i; } } cache.set(k, v); return v; };
+    const out = []; const b = (x) => out.push(x & 255); const w16 = (x) => { b(x); b(x >> 8); }; const str = (s) => { for (const c of s) b(c.charCodeAt(0)); };
+    str('GIF89a'); w16(w); w16(h); b(0xf7); b(0); b(0); for (const p of pal) { b(p[0]); b(p[1]); b(p[2]); }
+    if (loop) { b(0x21); b(0xff); b(11); str('NETSCAPE2.0'); b(3); b(1); w16(0); b(0); }
+    for (const f of frames) {
+      b(0x21); b(0xf9); b(4); b(0x09); w16(delayCs); b(TR); b(0);
+      b(0x2c); w16(0); w16(0); w16(w); w16(h); b(0);
+      const idx = new Uint8Array(w * h); for (let i = 0, j = 0; j < idx.length; i += 4, j++) idx[j] = f[i + 3] < 128 ? TR : nearest(f[i], f[i + 1], f[i + 2]);
+      // LZW, min code size 8
+      b(8); const bytes = []; let cur = 0, nb = 0; const emit = (code, size) => { cur |= code << nb; nb += size; while (nb >= 8) { bytes.push(cur & 255); cur >>= 8; nb -= 8; } };
+      let size = 9, next = 258; let dict = new Map(); emit(256, size); let prefix = idx[0];
+      for (let i = 1; i < idx.length; i++) { const c = idx[i]; const key = prefix * 256 + c; const v = dict.get(key); if (v !== undefined) { prefix = v; continue; }
+        emit(prefix, size); if (next < 4096) { dict.set(key, next++); if (next > (1 << size) && size < 12) size++; } else { emit(256, size); dict = new Map(); next = 258; size = 9; } prefix = c; }
+      emit(prefix, size); emit(257, size); if (nb > 0) bytes.push(cur & 255);
+      for (let i = 0; i < bytes.length; i += 255) { const n = Math.min(255, bytes.length - i); b(n); for (let j = 0; j < n; j++) b(bytes[i + j]); }
+      b(0);
+    }
+    b(0x3b); return new Uint8Array(out);
+  }
+  // XML -> {tag, attrs, children, text} (namespaces kept in the tag name, e.g. "a:t")
+  function xmlToK(text, toK, KError) {
+    if (text.length > 8 * 1024 * 1024) throw new KError('xml_parse(): too big');
+    const doc = new DOMParser().parseFromString(text, 'application/xml'); if (doc.getElementsByTagName('parsererror').length) return null;
+    let n = 0; const conv = (e, d) => { if (++n > 200000 || d > 200) return null; const attrs = {}; for (const a of e.attributes) attrs[a.name] = a.value; const kids = []; let txt = '';
+      for (const c of e.childNodes) { if (c.nodeType === 1) { const k = conv(c, d + 1); if (k) kids.push(k); } else if (c.nodeType === 3 || c.nodeType === 4) txt += c.nodeValue; }
+      return { tag: e.tagName, attrs, children: kids, text: txt }; };
+    return toK(conv(doc.documentElement, 0));
+  }
 
   function builtins(c) {
     const { B, K, KError, KHandle, KMap, toK, S, N, cv, col, el, cb, isFn, alive, getInterp, makeRuntime, R, opts } = c;
@@ -133,6 +214,51 @@
       beep: B(([f, s, wave, vol]) => { const a = audio(); if (!a) return false; const w = wave ? S(wave) : 'square'; if (!['sine', 'square', 'sawtooth', 'triangle'].includes(w)) throw new KError('beep(): wave is sine, square, sawtooth or triangle'); tone(a, a.currentTime, Math.max(20, Math.min(20000, N(f, 'beep()'))), Math.max(0.01, Math.min(10, N(s, 'beep()', 0.2))), w, Math.max(0, Math.min(1, N(vol, 'beep()', 0.3)))); return true; }, 1, 4),
       sound: B(([n, vol]) => { const a = audio(); if (!a) return false; const k = S(n); const f = SOUNDS[k]; if (!f) throw new KError('sound(): unknown sound "' + k + '" — try ' + Object.keys(SOUNDS).join(', ')); f(a, a.currentTime, Math.max(0, Math.min(1, N(vol, 'sound()', 0.4)))); return true; }, 1, 2),
       sound_names: B(() => Object.keys(SOUNDS), 0, 0),
+
+
+      // ---------- v1.8: image filters, regions, GIF / WebM export, ZIP (pptx / xlsx), XML
+      canvas_filter: B(([c, name, amount]) => {   // grayscale, sepia, invert, blur, brightness, contrast, saturate, hue
+        const hc = cv(c, 'canvas_filter()'); const k = S(name); const a = amount === undefined || amount === null ? null : N(amount, 'canvas_filter()');
+        const f = { grayscale: `grayscale(${a ?? 100}%)`, sepia: `sepia(${a ?? 100}%)`, invert: `invert(${a ?? 100}%)`, blur: `blur(${Math.max(0, Math.min(40, a ?? 2))}px)`, brightness: `brightness(${a ?? 120}%)`,
+          contrast: `contrast(${a ?? 130}%)`, saturate: `saturate(${a ?? 160}%)`, hue: `hue-rotate(${a ?? 90}deg)` }[k];
+        if (!f) throw new KError('canvas_filter(): filter is grayscale, sepia, invert, blur, brightness, contrast, saturate or hue');
+        const back = hc.back; const t = document.createElement('canvas'); t.width = back.width; t.height = back.height; t.getContext('2d').drawImage(back, 0, 0);
+        const g = back.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, back.width, back.height); g.filter = f; g.drawImage(t, 0, 0); g.restore(); R.touched(hc); return true;
+      }, 2, 3),
+      canvas_copy: B(([c, x, y, w, h]) => {   // a region of a canvas as a PNG data URL (selections, sprites, thumbnails)
+        const hc = cv(c, 'canvas_copy()'); const back = hc.back; const s = back.width / (hc.w || back.width);
+        const X = Math.round(N(x, 'canvas_copy()') * s), Y = Math.round(N(y, 'canvas_copy()') * s), W = Math.max(1, Math.round(N(w, 'canvas_copy()') * s)), H = Math.max(1, Math.round(N(h, 'canvas_copy()') * s));
+        if (W > 8192 || H > 8192) throw new KError('canvas_copy(): too big');
+        const t = document.createElement('canvas'); t.width = W; t.height = H; t.getContext('2d').drawImage(back, X, Y, W, H, 0, 0, W, H); return t.toDataURL('image/png');
+      }, 5, 5),
+      gif_encode: B(async ([frames, w, h, delay, loop]) => {   // frames: list of canvases or data:image URLs -> animated GIF data URL
+        if (!Array.isArray(frames) || !frames.length) throw new KError('gif_encode(): give a list of frames'); if (frames.length > 600) throw new KError('gif_encode(): at most 600 frames');
+        const W = Math.round(N(w, 'gif_encode()')), H = Math.round(N(h, 'gif_encode()')); if (W < 1 || H < 1 || W > 1024 || H > 1024) throw new KError('gif_encode(): size must be 1..1024');
+        const t = document.createElement('canvas'); t.width = W; t.height = H; const g = t.getContext('2d', { willReadFrequently: true }); const px = [];
+        for (const f of frames) { g.clearRect(0, 0, W, H); let im; if (f instanceof KHandle && f.kind === 'canvas') im = f.back || f.el; else { const u = S(f); if (!/^data:image\//.test(u)) throw new KError('gif_encode(): frames are canvases or data:image URLs'); im = imageFor(u); if (!im.complete) await new Promise((r) => { im.onload = im.onerror = () => r(); }); }
+          g.drawImage(im, 0, 0, W, H); px.push(g.getImageData(0, 0, W, H).data); await after(Promise.resolve()); }
+        const bytes = gifEncode(px, W, H, Math.max(2, Math.round(N(delay, 'gif_encode()', 100) / 10)), loop === undefined || loop === null ? true : !!loop);
+        return 'data:image/gif;base64,' + bytesToB64(bytes);
+      }, 3, 5),
+      canvas_record: B(async ([c, secs, fps]) => {   // record what a canvas shows for some seconds -> WebM video data URL
+        const hc = cv(c, 'canvas_record()'); const T = Math.max(0.2, Math.min(60, N(secs, 'canvas_record()'))); const el2 = hc.el;
+        if (!el2.captureStream || !root.MediaRecorder) throw new KError('canvas_record(): video recording is not available here');
+        const st = el2.captureStream(Math.max(1, Math.min(60, N(fps, 'canvas_record()', 30)))); const rec = new MediaRecorder(st, { mimeType: 'video/webm' }); const chunks = [];
+        rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+        const done = new Promise((r) => { rec.onstop = r; }); rec.start(250); await after(new Promise((r) => setTimeout(r, T * 1000))); rec.stop(); await done; st.getTracks().forEach((t) => t.stop());
+        const u8 = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer()); return 'data:video/webm;base64,' + bytesToB64(u8);
+      }, 2, 3),
+      zip_create: B(async ([files, compress]) => {   // {"name": text or data URL, ...} -> ZIP data URL (pptx / xlsx are zips)
+        if (!(files instanceof KMap)) throw new KError('zip_create(): give a map of file name -> text or data URL');
+        const list = [...files.m.entries()].map(([k, v]) => [String(k), S(v)]); if (list.length > 2000) throw new KError('zip_create(): too many files');
+        for (const [n] of list) if (!/^[A-Za-z0-9_\-./\[\]]{1,200}$/.test(n) || n.includes('..')) throw new KError('zip_create(): bad file name ' + n);
+        const u8 = await zipCreate(list, compress === undefined || compress === null ? true : !!compress); return 'data:application/zip;base64,' + bytesToB64(u8);
+      }, 1, 2),
+      zip_read: B(async ([d]) => {   // ZIP data URL -> {"name": text (xml, json, txt...) or data URL}
+        const u8 = dataBytes(S(d)); if (!u8) throw new KError('zip_read(): needs a data URL (file_open gives one for .pptx / .xlsx)');
+        try { const out = new KMap(); for (const [k, v] of await zipRead(u8, 3000)) out.m.set(k, v); return out; } catch (e) { throw new KError('zip_read(): ' + e.message); }
+      }, 1, 1),
+      xml_parse: B(([t]) => xmlToK(S(t), toK, KError), 1, 1),
 
       // ---------- files: always through the user's own Save / Open dialog
       file_save: B(async ([name, content]) => {

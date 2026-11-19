@@ -251,10 +251,12 @@ ipcMain.handle('kompass:save-text-file', async (_e, name, text) => {
 });
 // ---------------- v1.7 files + model library for KampfScript apps (Kugel 3D Modeler, Kugel Blocks ...)
 // file_save / file_open always go through the user's own Save / Open dialog (tests: KOMPASS_SAVE_DIR / KOMPASS_OPEN_FILE).
-const APP_SAVE_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'glb', 'png', 'jpg', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'wav'];
-const APP_TEXT_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'mtl'];
-const APP_OPEN_EXT = APP_TEXT_EXT.concat(['glb', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'wav', 'mp3']);
-const MIME = { glb: 'model/gltf-binary', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', wav: 'audio/wav', mp3: 'audio/mpeg' };
+const APP_SAVE_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'glb', 'png', 'jpg', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'wav',
+  'gif', 'webm', 'pptx', 'xlsx', 'kpaint', 'kmotion', 'kvector', 'kprism', 'knotes', 'klattice'];   // v1.8 Kugel Design / Work
+const APP_TEXT_EXT = ['ks', 'txt', 'json', 'csv', 'md', 'obj', 'gltf', 'svg', 'html', 'kmodel', 'kblocks', 'kblocks3d', 'mtl', 'kpaint', 'kmotion', 'kvector', 'kprism', 'knotes', 'klattice', 'tsv'];
+const APP_OPEN_EXT = APP_TEXT_EXT.concat(['glb', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'wav', 'mp3', 'pptx', 'xlsx', 'webm']);
+const MIME = { glb: 'model/gltf-binary', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', wav: 'audio/wav', mp3: 'audio/mpeg', webm: 'video/webm',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
 function dataToBuffer(d) { const m = /^data:[^;,]*;base64,(.*)$/s.exec(d); return m ? Buffer.from(m[1], 'base64') : Buffer.from(d, 'utf8'); }
 ipcMain.handle('kompass:file-save', async (_e, name, data) => {
   const base = safeName(String(name || 'file.txt')); const ext = (base.split('.').pop() || '').toLowerCase();
