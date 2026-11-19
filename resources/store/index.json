@@ -223,6 +223,18 @@
         "email",
         "download"
       ]
+    },
+    {
+      "id": "kugel-arithmetricks",
+      "icon": "🧮",
+      "title": "Kugel Arithmetricks",
+      "author": "KampfGuy",
+      "description": "A real calculator in the Windows 11 style: Standard, Scientific, Programmer (HEX/DEC/OCT/BIN), date calculation and 10 unit converters. History, memory, keyboard, light and dark theme. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "calculator"
+      ]
     }
   ]
 }
