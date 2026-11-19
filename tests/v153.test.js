@@ -131,7 +131,7 @@ const done = (w) => { w.stop(); tick(2); };   // closing the page frees its WebG
   }
   ok('Learn: 4 lessons "3D games ①-④" (scene/shapes/light, moving in on_frame, fps_controls + collisions + HUD, a finished mini-game): examples run, exercises solvable, Gem Grab winnable');
 
-  assert(JSON.parse(read('package.json')).version === '1.5.3' && /let VERSION = "1.5.3"/.test(browser), 'version 1.5.3');
+  { const v = JSON.parse(read('package.json')).version; assert(/^1\.5\.([3-9]|\d\d)$|^1\.([6-9]|\d\d)\.|^[2-9]\./.test(v) && browser.includes('let VERSION = "' + v + '"'), 'version 1.5.3 or later'); }
   ok('version 1.5.3');
   console.log('\n' + passed + ' passed, 0 failed');
 })().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });

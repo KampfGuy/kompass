@@ -10,10 +10,11 @@ const DATA = path.join(app.getPath('userData'), 'kompass');
 const SCRIPTS = path.join(DATA, 'scripts');
 fs.mkdirSync(SCRIPTS, { recursive: true });
 
-// Strip "Electron/x" from the UA so sites like YouTube treat us like regular Chrome.
-// A standard desktop Chrome UA (Windows), with the real Chromium major version, so Google and others see a normal browser.
-const CHROME_MAJOR = String(process.versions.chrome || '130').split('.')[0];
-const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' + CHROME_MAJOR + '.0.0.0 Safari/537.36';
+// What web pages see (see src/useragent.js): a clean Chrome UA with the real Chromium version for every site, and a Firefox UA
+// on Google's sign-in pages, which reject embedded Chromium that claims to be Chrome.
+const UA = require('./useragent');
+const UAS = UA.make(process.versions, process.platform);
+const CHROME_UA = UAS.chrome;
 app.userAgentFallback = CHROME_UA;
 const { Vault, generate, originOf } = require('./vault');
 
@@ -76,6 +77,9 @@ function createWindow() {
   win.on('leave-full-screen', () => { if (win) win.webContents.send('kompass:fullscreen', false); });
   win.on('enter-full-screen', () => { if (win) win.webContents.send('kompass:fullscreen', true); });
   win.loadFile(path.join(__dirname, 'index.html'));
+  // the engine's real client-hint brands (e.g. "Chromium";v="156"), sent as Sec-CH-UA on https requests from tabs
+  win.webContents.once('did-finish-load', () => win.webContents.executeJavaScript('navigator.userAgentData ? {brands: navigator.userAgentData.brands, mobile: navigator.userAgentData.mobile, platform: navigator.userAgentData.platform} : null')
+    .then((u) => { UAS.ch = UA.chHeaders(u); }).catch(() => {}));
 }
 
 app.on('web-contents-created', (_e, contents) => {
@@ -92,6 +96,11 @@ app.on('web-contents-created', (_e, contents) => {
   setupContextMenu(contents);
   if (contents.getType() === 'webview') {
     contents.setUserAgent(CHROME_UA);
+    // v1.6.0: switch the tab's UA before a top-level navigation commits, so the page's navigator.userAgent matches the header
+    contents.on('did-start-navigation', (d) => {
+      if (!d || !d.isMainFrame || d.isSameDocument) return;
+      const want = UA.uaFor(d.url, UAS); if (contents.getUserAgent() !== want) contents.setUserAgent(want);
+    });
     contents.setWindowOpenHandler(({ url }) => { if (win) win.webContents.send('kompass:open-tab', url); return { action: 'deny' }; });
     // v1.5.2: HTML5 fullscreen (YouTube, Google Slides/Docs present, Maps...). host.js hides the chrome; Esc leaves it like in Chrome.
     let htmlFs = false;
@@ -148,6 +157,8 @@ function buildMenu(contents, p) {
 
 app.whenReady().then(() => {
   session.fromPartition('persist:kompass').setUserAgent(CHROME_UA);
+  // every request from a tab: the right UA for its URL (Firefox UA + no Sec-CH-UA on Google sign-in, clean Chrome elsewhere)
+  session.fromPartition('persist:kompass').webRequest.onBeforeSendHeaders((d, cb) => cb({ requestHeaders: UA.fixHeaders(d.requestHeaders, UA.requestUA(d, UAS), UAS, d.url) }));
   session.fromPartition('persist:kompass').webRequest.onBeforeRequest((d, cb) => {
     if (blockOn && d.resourceType !== 'mainFrame' && isBlocked(d.url)) { blockedCount++; return cb({ cancel: true }); }
     cb({});
@@ -328,7 +339,7 @@ ipcMain.on('kompass:pw-list', (e, q) => { e.returnValue = pwOk(() => ({ ok: true
 ipcMain.on('kompass:pw-save', (e, id, origin, user, pw) => { e.returnValue = pwOk(() => ({ ok: true, id: vault.save(id || null, origin, user, pw) })); });
 ipcMain.on('kompass:pw-delete', (e, id) => { e.returnValue = pwOk(() => { vault.remove(id); return { ok: true }; }); });
 ipcMain.on('kompass:pw-reveal', (e, id) => { const r = pwOk(() => { const it = vault.get(id); return it ? { ok: true, password: it.password } : { ok: false, error: 'not found' }; }); e.returnValue = r; });
-ipcMain.on('kompass:pw-copy', (e, id) => { e.returnValue = pwOk(() => { const it = vault.get(id); if (!it) return { ok: false }; clipboard.writeText(it.password); setTimeout(() => { if (clipboard.readText() === it.password) clipboard.clear(); }, 30000); return { ok: true }; }); });
+ipcMain.on('kompass:pw-copy', (e, id) => { e.returnValue = pwOk(() => { const it = vault.get(id); if (!it) return { ok: false }; clipboard.writeText(it.password); setTimeout(() => { Promise.resolve(clipboard.readText()).then((t) => { if (t === it.password) clipboard.clear(); }).catch(() => {}); }, 30000); return { ok: true }; }); });
 ipcMain.on('kompass:pw-generate', (e, n) => { e.returnValue = generate(n); });
 ipcMain.on('kompass:pw-offer', (e, id, action) => {
   const o = pwOffers.get(id); pwOffers.delete(id);
@@ -424,7 +435,7 @@ if (process.env.KOMPASS_SHOTS12) {
       // For AIs
       await go('kompass://learn/ai'); await wait(1500);
       await js("document.querySelector('.ai-copy').click()"); await wait(300);
-      console.log('[shots12] clipboard chars', clipboard.readText().length, 'starts', JSON.stringify(clipboard.readText().slice(0, 40)));
+      { const cb = String(await clipboard.readText()); console.log('[shots12] clipboard chars', cb.length, 'starts', JSON.stringify(cb.slice(0, 40))); }
       await shot('kompass12-ai.png');
       // passwords: create vault, add a login
       await go('kompass://passwords'); await wait(1000);
@@ -489,7 +500,7 @@ if (process.env.KOMPASS_SHOTS13) {
   const key = (k) => js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)}}));setTimeout(()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:${JSON.stringify(k)}})),30)`);
   const fps = () => js(`new Promise(r=>{let n=0;const t0=performance.now();const f=()=>{n++;if(performance.now()-t0<2000)requestAnimationFrame(f);else r(Math.round(n/2))};requestAnimationFrame(f)})`);
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots13] PAGE-ERROR', msg); });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error/.test(msg)) console.log('[shots13] PAGE-ERROR', msg); });
     try {
       await wait(3500);
       await js(`Object.keys(localStorage).filter(k=>k.startsWith('ks-store:sfs')).forEach(k=>localStorage.removeItem(k));
@@ -572,7 +583,7 @@ if (process.env.KOMPASS_SHOTS15) {
       if(g){const d=g.getImageData(cv.width>>1,cv.height>>1,1,1).data;if(d[3]===0)blankFrames++;}
       if(performance.now()-t0<3000)requestAnimationFrame(f);else{mo.disconnect();res({frames,removed,emptyFrames,blankFrames,panels:panels.length,commits:window.__ksRender.stats})}};requestAnimationFrame(f)})`);
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots15] PAGE-ERROR', msg); });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error/.test(msg)) console.log('[shots15] PAGE-ERROR', msg); });
     try {
       await wait(3500);
       await js(`localStorage.setItem('ks-store:sfs_rockets', JSON.stringify([{name:'Demo rocket',parts:[{id:'coneS',col:11,row:0,rot:0,uid:1},{id:'pod',col:11,row:2,rot:0,uid:2},{id:'chute',col:11,row:4,rot:0,uid:3},{id:'sepS',col:11,row:5,rot:0,uid:4},{id:'tankS',col:11,row:6,rot:0,uid:5},{id:'tankS',col:11,row:10,rot:0,uid:6},{id:'engB',col:11,row:14,rot:0,uid:7},{id:'srbT',col:9,row:11,rot:0,uid:8},{id:'srbT',col:13,row:11,rot:0,uid:9}]}]))`);
@@ -605,7 +616,7 @@ if (process.env.KOMPASS_SHOTS151) {
   const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, name), img.toPNG()); console.log('[shots151] wrote', name); };
   const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) console.log('[shots151] PAGE-ERROR', msg); });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error/.test(msg)) console.log('[shots151] PAGE-ERROR', msg); });
     try {
       await wait(3500);
       let t0 = Date.now(); await go('kompass://store/bigpack');
@@ -635,7 +646,7 @@ if (process.env.KOMPASS_SHOTS_GAMES) {
   const mouse = (type, fx, fy) => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) .app-stage canvas')].filter(c=>c.offsetParent).pop();if(!c)return;const r=c.getBoundingClientRect();c.dispatchEvent(new MouseEvent(${JSON.stringify(type)},{clientX:r.left+r.width*${fx},clientY:r.top+r.height*${fy},bubbles:true}))})()`);
   let errs = [];
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error/.test(msg)) errs.push(msg); });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error/.test(msg)) errs.push(msg); });
     try {
       await wait(3500);
       await go('kompass://store'); await wait(2500);
@@ -670,7 +681,7 @@ if (process.env.KOMPASS_SHOTS152) {
   const errs = [];
   const guest = () => require('electron').webContents.getAllWebContents().filter(w => w.getType() === 'webview' && !w.isDestroyed()).find(w => /^https?:|^data:/.test(w.getURL()) && w.getURL() !== 'about:blank');
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots152] PAGE-ERROR', msg); } });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots152] PAGE-ERROR', msg); } });
     try {
       await wait(3500);
       await go('kompass://games3d'); await wait(1200); await shot('games3d.png');
@@ -719,7 +730,7 @@ if (process.env.KOMPASS_SHOTS153) {
   const glInfo = () => js(`(()=>{const c=[...document.querySelectorAll('.ks-tabview:not([hidden]) canvas.ks-scene3d-gl')].filter(c=>c.offsetParent)[0];if(!c)return 'no 3D canvas';const g=c.getContext('webgl2')||c.getContext('webgl');return c.width+'x'+c.height+' '+(g?g.getParameter(g.VERSION):'no context')})()`);
   const errs = [];
   app.whenReady().then(async () => {
-    win.webContents.on('console-message', (e, level, msg) => { if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots153] PAGE-ERROR', msg); } });
+    win.webContents.on('console-message', (e, level, m) => { const msg = String((e && e.message) || m || ''); if (/page error|KampfScript error|Uncaught/.test(msg)) { errs.push(msg); console.log('[shots153] PAGE-ERROR', msg); } });
     try {
       await wait(3500);
       await go('kompass://store'); await wait(2500);
@@ -755,5 +766,54 @@ if (process.env.KOMPASS_SHOTS153) {
       console.log('[shots153] errors total:', errs.length);
     } catch (e) { console.log('[shots153] error', e && e.stack || e); }
     app.quit();
+  });
+}
+
+// ---------------- v1.6.0 self-test: KOMPASS_SHOTS160=/out/dir — what Google (and any site) sees from a Kompass tab:
+//   request headers (User-Agent, Sec-CH-UA*), navigator.userAgent / userAgentData / webdriver / window.chrome, and Google pages.
+//   KOMPASS_SHOTS160_PREFIX names the files (e.g. "before-" / "after-"); KOMPASS_GOOGLE_EMAIL tries Google sign-in up to the password step.
+if (process.env.KOMPASS_SHOTS160) {
+  const out = process.env.KOMPASS_SHOTS160, pre = process.env.KOMPASS_SHOTS160_PREFIX || 'kompass160-';
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const js = (code) => win.webContents.executeJavaScript(code);
+  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, pre + name), img.toPNG()); console.log('[shots160] wrote ' + pre + name); };
+  const go = (u) => js(`(()=>{const a=document.querySelector('.address');a.value=${JSON.stringify(u)};a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));a.blur();})()`);
+  const guest = () => require('electron').webContents.getAllWebContents().filter(w => w.getType() === 'webview' && !w.isDestroyed()).find(w => /^https?:/.test(w.getURL()));
+  const report = {};
+  // a local page that asks for every client hint (Accept-CH + Critical-CH) and echoes the request headers back
+  const http = require('http');
+  const CH = 'Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness, Sec-CH-UA-Model, Sec-CH-UA-WoW64, Sec-CH-UA-Form-Factors';
+  const srv = http.createServer((q, s) => { s.writeHead(200, { 'content-type': 'text/html', 'accept-ch': CH, 'critical-ch': CH }); s.end('<title>headers</title><pre id=h>' + JSON.stringify(q.headers, null, 1).replace(/</g, '&lt;') + '</pre>'); });
+  const PROBE = `(async()=>{const d=navigator.userAgentData;let he=null;try{he=d&&await d.getHighEntropyValues(['architecture','bitness','fullVersionList','model','platformVersion','uaFullVersion','wow64','formFactors'])}catch(e){he='ERR '+e.message}
+    return {ua:navigator.userAgent,appVersion:navigator.appVersion,vendor:navigator.vendor,platform:navigator.platform,brands:d&&d.brands,mobile:d&&d.mobile,uadPlatform:d&&d.platform,high:he,webdriver:navigator.webdriver,
+      chrome:typeof window.chrome==='object'?Object.keys(window.chrome):String(typeof window.chrome),pdf:navigator.pdfViewerEnabled,plugins:navigator.plugins.length,languages:navigator.languages,process:typeof window.process,require:typeof window.require,electronUA:/Electron|Kompass/.test(navigator.userAgent)}})()`;
+  app.whenReady().then(async () => {
+    try {
+      await new Promise(r => srv.listen(0, '127.0.0.1', r)); const local = 'http://127.0.0.1:' + srv.address().port + '/';
+      await wait(3500);
+      await go(local); await wait(1200); await go(local); await wait(1500);   // second load carries the hints the first response asked for
+      let g = guest(); report.localHeaders = JSON.parse(await g.executeJavaScript('document.getElementById("h").textContent'));
+      report.js = await g.executeJavaScript(PROBE);
+      await shot('headers.png');
+      const pages = [['https-headers', 'https://httpbin.org/headers'], ['google-search', 'https://www.google.com/search?q=kompass+browser&hl=en'], ['google-signin', 'https://accounts.google.com/ServiceLogin?hl=en&continue=https://myaccount.google.com/'],
+        ['google-docs', 'https://docs.google.com/document/u/0/?hl=en'], ['google-meet', 'https://meet.google.com/?hl=en'], ['google-chrome-detect', 'https://www.google.com/chrome/?hl=en']];
+      for (const [name, u] of pages) {
+        await go(u); await wait(+process.env.KOMPASS_SHOTS160_WAIT || 7000); g = guest();
+        const info = g ? await g.executeJavaScript(`({url:location.href.slice(0,160),title:document.title,text:document.body?document.body.innerText.replace(/\\s+/g,' ').slice(0,600):'',basic:!!document.querySelector('form[action="/search"] input[name=gbv]')||/gbv=1/.test(location.href),ua:navigator.userAgent,brands:navigator.userAgentData?navigator.userAgentData.brands.map(b=>b.brand+' '+b.version).join(', '):null})`).catch(e => ({ err: e.message })) : { err: 'no guest' };
+        report[name] = info; console.log('[shots160]', name, JSON.stringify(info).slice(0, 400));
+        await shot(name + '.png');
+        if (name === 'google-signin' && process.env.KOMPASS_GOOGLE_EMAIL && g) {
+          console.log('[shots160] email field:', await g.executeJavaScript(`new Promise(r=>{let n=0;const t=setInterval(()=>{const i=document.querySelector('input[type=email]');if(i||++n>40){clearInterval(t);if(i)i.focus();r(!!i)}},250)})`)); g.focus();
+          for (const ch of process.env.KOMPASS_GOOGLE_EMAIL) g.sendInputEvent({ type: 'char', keyCode: ch });
+          await wait(400); g.sendInputEvent({ type: 'keyDown', keyCode: 'Return' }); g.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+          await wait(7000); g = guest();
+          report['google-signin-next'] = await g.executeJavaScript(`({url:location.href.slice(0,200),text:document.body.innerText.replace(/\\s+/g,' ').slice(0,600),password:!!document.querySelector('input[type=password]')})`).catch(e => ({ err: e.message }));
+          console.log('[shots160] signin-next', JSON.stringify(report['google-signin-next']));
+          await shot('google-signin-next.png');
+        }
+      }
+    } catch (e) { console.log('[shots160] error', e && e.stack || e); report.error = String(e && e.stack || e); }
+    fs.writeFileSync(path.join(out, pre + 'report.json'), JSON.stringify(report, null, 1));
+    srv.close(); app.quit();
   });
 }

@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.5.3"
+let VERSION = "1.6.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data
@@ -1134,7 +1134,8 @@ fn google_note(on) {
   clear(gnote)
   show(gnote, on)
   if not on { return }
-  label(gnote, "Google may refuse sign-in in browsers it doesn't recognise (\"This browser or app may not be secure\"). Kompass sends a standard Chrome user agent; if Google still says no, try again later, use a passkey / phone prompt, or sign in to that service in another browser.", "")
+  label(gnote, "Google refused this sign-in (\"This browser or app may not be secure\"). Kompass 1.6.0 runs an up-to-date engine and signs in to Google the way it accepts; if it still says no, press Google's \"Try again\", wait a few minutes (too many tries in a row trigger this too), use a passkey / phone prompt, or open it in your default browser.", "")
+  button(gnote, "↗ Open in my browser", fn() { open_external(tab_url(current)) }, "pill")
   button(gnote, "×", fn() { show(gnote, false) }, "pill ghost")
 }
 
