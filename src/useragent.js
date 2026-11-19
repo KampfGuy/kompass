@@ -5,8 +5,10 @@
 //  1. Kompass 1.5.x ran Electron 33 = Chromium 130 (Oct 2024) while Chrome was at 159: Google saw a Chrome two years
 //     out of date. 1.6.0 moves to Electron 45 (Chromium 156) and reports that real version.
 //  2. Google's sign-in page (accounts.google.com) fingerprints embedded Chromium (Electron) and rejects it whenever it
-//     claims to be Chrome, even with a clean UA and "Google Chrome" client-hint brands. With a Firefox User-Agent on the
-//     sign-in pages only, Google takes the normal password step. Every other site keeps the honest Chrome UA.
+//     claims to be Chrome, even with a clean UA and "Google Chrome" client-hint brands (0 of 8 tries). With a Firefox
+//     User-Agent on the sign-in pages only, Google sometimes takes the normal password step instead (2 of 6 tries; real
+//     Chrome on the same machine: every time). Google deliberately blocks embedded browsers, so this is best effort;
+//     when it still refuses, browser.ks shows a note with "Open in my browser". Every other site keeps the Chrome UA.
 'use strict';
 
 // the OS part of the UA must match navigator.platform, or sites see an inconsistent (= suspicious) browser

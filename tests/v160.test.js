@@ -74,6 +74,30 @@ const pkg = JSON.parse(read('package.json'));
   assert(/fn google_note\(on\)[\s\S]{0,900}Open in my browser[\s\S]{0,80}open_external\(tab_url\(current\)\)/.test(ks), 'Google refusal note offers the default browser');
   ok('wired: fallback + per-tab UA switch + header rewrite + engine client hints; updater keeps "Kompass-Updater"; Google note');
 }
+// ---------------------------------------------------------------- the VR app lives in main (vr/ + android/), not in the Windows build
+{
+  for (const f of ['vr/build-web.js', 'vr/build-apk.sh', 'vr/version.json', 'vr/web/native-shim.js', 'vr/store/index-vr.json', 'vr/tests/vr.test.js', 'vr/tests/vr-games.test.js',
+    'android/app/build.gradle', 'android/app/src/main/AndroidManifest.xml', 'android/app/src/main/java/com/kampfguy/kompass/vr/WebTabs.java']) assert(fs.existsSync(path.join(ROOT, f)), 'in main: ' + f);
+  const files = pkg.build.files; assert(files.every(f => !/^(vr|android)\b/.test(f)) && files.includes('src/**') && files.includes('resources/**'), 'electron-builder packs only src/ + resources/');
+  assert(pkg.build.extraResources.every(r => r.from === 'resources'), 'extra resources: resources/ only');
+  assert(/vr\/tests\/vr\.test\.js/.test(pkg.scripts['test:vr']) && !/vr\//.test(pkg.scripts.test), 'npm run test:vr runs the VR tests; npm test stays Windows-only');
+  const vv = JSON.parse(read('vr/version.json')); assert.strictEqual(vv.versionName, '1.6.0-vr.1'); assert(vv.versionCode >= 3);
+  const tabs = read('android/app/src/main/java/com/kampfguy/kompass/vr/WebTabs.java');
+  assert(/setUserAgentString\(cleanUA\(s\.getUserAgentString\(\)\)\)/.test(tabs) && /replace\("; wv\)", "\)"\)/.test(tabs) && !/" KompassVR\/" \+/.test(tabs), 'VR web view UA: no "; wv" / Version/4.0 / KompassVR tokens');
+  ok('VR app in main: vr/ + android/, kept out of the Windows exe, npm run test:vr, 1.6.0-vr.1 with a clean WebView UA');
+}
+// ---------------------------------------------------------------- README: one page, Windows + VR sections, download first
+{
+  const md = read('README.md');
+  const win = md.indexOf('## 🧭 Kompass for Windows'), vr = md.indexOf('## 🥽 Kompass VR');
+  assert(win > 0 && vr > win, 'two sections, Windows first');
+  const dl = (from) => md.slice(from).split('\n').slice(1).find(l => l.trim() && !/^#{3} ⬇/.test(l));
+  assert(/releases\/latest/.test(dl(win)), 'Windows section starts with the latest-release download');
+  assert(/Kompass-VR-[\d.]+-vr\.\d+\.apk/.test(dl(vr)), 'VR section starts with the APK download');
+  for (const t of ['How it updates', 'SHA512', 'Prereleases', 'Kugel Store', 'Fullscreen', 'Learn KampfScript', 'DevTools', 'Kugel Tennis VR', 'Kugel Gorillas VR', 'Kugel Saber VR', 'Quest Browser', 'sideload', 'Unknown Sources'])
+    assert(md.includes(t), 'README mentions ' + t);
+  ok('README: one page, Windows section + VR section, each opening with its download');
+}
 // ---------------------------------------------------------------- version
 {
   const ks = read('resources/browser.ks');

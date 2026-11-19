@@ -1134,7 +1134,7 @@ fn google_note(on) {
   clear(gnote)
   show(gnote, on)
   if not on { return }
-  label(gnote, "Google refused this sign-in (\"This browser or app may not be secure\"). Kompass 1.6.0 runs an up-to-date engine and signs in to Google the way it accepts; if it still says no, press Google's \"Try again\", wait a few minutes (too many tries in a row trigger this too), use a passkey / phone prompt, or open it in your default browser.", "")
+  label(gnote, "Google refused this sign-in (\"This browser or app may not be secure\"). Google blocks sign-in in browsers built into apps, and it can still refuse Kompass. Press Google's \"Try again\" or wait a few minutes (many tries in a row make it stricter). Or open this page in your default browser.", "")
   button(gnote, "↗ Open in my browser", fn() { open_external(tab_url(current)) }, "pill")
   button(gnote, "×", fn() { show(gnote, false) }, "pill ghost")
 }

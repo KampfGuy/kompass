@@ -80,7 +80,7 @@ final class WebTabs {
         s.setSupportMultipleWindows(true);
         s.setJavaScriptCanOpenWindowsAutomatically(false);
         s.setAllowFileAccess(false); s.setAllowContentAccess(false);
-        s.setUserAgentString(s.getUserAgentString() + " KompassVR/" + BuildConfig.VERSION_NAME);
+        s.setUserAgentString(cleanUA(s.getUserAgentString()));
         CookieManager.getInstance().setAcceptThirdPartyCookies(v, true);
         v.setVisibility(View.GONE);
 
@@ -187,5 +187,13 @@ final class WebTabs {
         CookieManager.getInstance().flush();
         WebStorage.getInstance().deleteAllData();
         for (WebView v : views.values()) { v.clearCache(true); v.clearHistory(); v.clearFormData(); }
+    }
+
+    // 1.6.0-vr.1: Google refuses sign-in in apps' embedded web views and spots them by the "; wv" and "Version/4.0" tokens
+    // Android adds to the WebView User-Agent (Kompass VR also appended "KompassVR/x"). Pages now see the same UA as
+    // Chrome on Android: same engine, same Chrome version, nothing that says "embedded app".
+    static String cleanUA(String ua) {
+        if (ua == null) return "";
+        return ua.replace("; wv)", ")").replaceAll(" Version/\\d+(\\.\\d+)*", "").replaceAll(" KompassVR/\\S+", "").replaceAll("\\s+", " ").trim();
     }
 }

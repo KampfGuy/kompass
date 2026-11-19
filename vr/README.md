@@ -37,7 +37,7 @@ quick-menu entries (Home, Editor, Store, YouTube), a compact toolbar and the cal
 - **Canvas mirror (experimental)**: `vr/web/vr-xr.js` shows a "🥽 Immersive" button on ordinary 2D KampfScript canvas
   games when the runtime supports WebXR (hidden for VR games, which have their own immersive mode, see below).
 
-## VR mode, 3D and VR games (1.5.3-vr.1)
+## VR mode, 3D and VR games (since 1.5.3-vr.1)
 - **3D**: the full KampfScript 3D API from Kompass 1.5.2+ (`scene3d`, `cube`, `move3d`, … three.js r187) is in the VR
   build. On Android the pixel ratio is capped at 1 for the Quest's GPU; controllers/gamepads show up in `gamepad()`.
 - **VR API** (in every KampfScript sandbox, documented in `kompass://learn/ai` §7.9 and lesson ⑯):
@@ -96,3 +96,6 @@ Quest-size screenshots).
   is hidden for that moment.
 - High scores of a game played in the Quest Browser (immersive) are stored by the browser, separate from the
   ones of the same game played on the panel.
+- 1.6.0-vr.1: web pages see a clean Chrome-on-Android User-Agent (the WebView's "; wv" / "Version/4.0" markers and the
+  "KompassVR/x" token are gone), because Google refuses sign-in in UAs marked as an embedded web view.
+  The source now lives in the main branch of KampfGuy/kompass (`vr/` + `android/`).
