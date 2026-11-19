@@ -1,0 +1,42 @@
+{
+  "name": "kugel-mail",
+  "productName": "Kugel Mail",
+  "version": "1.0.0",
+  "description": "Kugel Mail - a small, private email app (IMAP + SMTP) from the Kompass family",
+  "main": "src/main.js",
+  "author": "KampfGuy",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/mail.test.js",
+    "dist:win": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.kampfguy.kugelmail",
+    "productName": "Kugel Mail",
+    "files": [
+      "src/**",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Kugel-Mail-${version}-portable.exe"
+    }
+  },
+  "dependencies": {
+    "imapflow": "^1.0.200",
+    "nodemailer": "^7.0.0",
+    "mailparser": "^3.7.0",
+    "sanitize-html": "^2.13.0"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^25.1.8"
+  }
+}

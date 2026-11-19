@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; frame-src 'self' about:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Kugel Mail</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="setup" class="view" hidden>
+  <div class="card setup">
+    <div class="brand"><span class="kugel"></span> Kugel Mail</div>
+    <h2 id="setup-title">Add your email account</h2>
+    <div class="presets" id="presets"></div>
+    <p class="note" id="preset-note"></p>
+    <label>Your name <input id="s-name" placeholder="Kampf Kaiser" autocomplete="name"></label>
+    <label>Email address <input id="s-email" type="email" placeholder="you@gmail.com" autocomplete="email"></label>
+    <label><span id="s-pass-label">App password</span> <input id="s-pass" type="password" autocomplete="off" placeholder="paste it here"></label>
+    <details id="s-adv"><summary>Server settings</summary>
+      <label>Login name (usually your email) <input id="s-user"></label>
+      <div class="row"><label>Incoming (IMAP) server <input id="s-ihost"></label><label class="small">Port <input id="s-iport" type="number"></label>
+        <label class="small">Security <select id="s-isec"><option value="tls">SSL/TLS</option><option value="starttls">STARTTLS</option><option value="none">None (this PC only)</option></select></label></div>
+      <div class="row"><label>Outgoing (SMTP) server <input id="s-shost"></label><label class="small">Port <input id="s-sport" type="number"></label>
+        <label class="small">Security <select id="s-ssec"><option value="tls">SSL/TLS</option><option value="starttls">STARTTLS</option><option value="none">None (this PC only)</option></select></label></div>
+    </details>
+    <p class="secure" id="secure-note"></p>
+    <div class="err" id="setup-err" role="alert"></div>
+    <div class="actions"><button id="s-cancel" class="ghost" hidden>Cancel</button><button id="s-remove" class="danger ghost" hidden>Remove account</button><button id="s-save" class="primary">Test &amp; save</button></div>
+  </div>
+</div>
+
+<div id="main" class="view" hidden>
+  <aside class="side">
+    <div class="brand"><span class="kugel"></span> Kugel Mail</div>
+    <button id="compose" class="primary big">✎ Write</button>
+    <select id="acct-pick" title="Account"></select>
+    <nav id="folders"></nav>
+    <div class="side-foot"><button id="b-acct" class="link">Account settings</button><button id="b-add" class="link">+ Add account</button><button id="b-help" class="link">Help</button></div>
+  </aside>
+  <section class="list">
+    <div class="list-top"><input id="search" type="search" placeholder="Search this folder…"><button id="refresh" title="Check for new mail">⟳</button></div>
+    <div id="msgs" tabindex="0"></div>
+    <button id="more" class="ghost" hidden>Load older messages</button>
+  </section>
+  <section class="reader" id="reader">
+    <div class="empty" id="reader-empty">Pick a message to read it.</div>
+    <div id="reader-body" hidden>
+      <div class="r-tools"><button id="r-reply">↩ Reply</button><button id="r-all">↩↩ Reply all</button><button id="r-fwd">↪ Forward</button><button id="r-unread">Mark unread</button><button id="r-del" class="danger">🗑 Delete</button></div>
+      <h1 id="r-subject"></h1>
+      <div class="r-meta"><div><b id="r-from"></b></div><div>To: <span id="r-to"></span></div><div id="r-cc-row">Cc: <span id="r-cc"></span></div><div class="r-date" id="r-date"></div></div>
+      <div class="r-blocked" id="r-blocked" hidden>🛡 <span id="r-blocked-n"></span> remote images were blocked to protect your privacy (they can tell the sender you opened this). <button id="r-load">Load images</button></div>
+      <div class="r-att" id="r-att"></div>
+      <iframe id="r-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Message"></iframe>
+    </div>
+  </section>
+</div>
+
+<div id="composer" class="overlay" hidden>
+  <div class="card compose">
+    <div class="c-head"><b id="c-title">New message</b><button id="c-close" class="ghost" title="Discard">✕</button></div>
+    <label>To <input id="c-to" placeholder="name@example.com, …"></label>
+    <label>Cc <input id="c-cc"></label>
+    <label>Subject <input id="c-subject"></label>
+    <textarea id="c-text" placeholder="Write your message…"></textarea>
+    <div class="c-files" id="c-files"></div>
+    <div class="err" id="c-err" role="alert"></div>
+    <div class="actions"><button id="c-attach" class="ghost">📎 Attach files</button><button id="c-send" class="primary">Send</button></div>
+  </div>
+</div>
+
+<div id="help" class="overlay" hidden>
+  <div class="card helpc">
+    <div class="c-head"><b>Kugel Mail help</b><button id="h-close" class="ghost">✕</button></div>
+    <div class="help-body">
+      <h3>Getting started</h3>
+      <p>Pick Gmail, Outlook, Yahoo or Other, type your email and password, and press <b>Test &amp; save</b>. Kugel Mail checks both receiving (IMAP) and sending (SMTP) before saving.</p>
+      <h3>Gmail: use an App Password</h3>
+      <ol><li>Turn on 2-Step Verification in your Google Account.</li><li>Open <b>myaccount.google.com/apppasswords</b>.</li><li>Create one named "Kugel Mail" and paste the 16 letters (spaces don't matter) as the password.</li></ol>
+      <p>Your normal Gmail password will not work — Google blocks it for mail apps.</p>
+      <h3>Yahoo</h3><p>Account Security → <b>Generate app password</b>, then paste it.</p>
+      <h3>Outlook / Hotmail</h3><p>Microsoft now requires "modern" (OAuth) sign-in for personal Outlook.com accounts. Kugel Mail 1.0 only supports passwords, so Outlook.com may refuse to connect. Some work/school accounts still allow passwords.</p>
+      <h3>Privacy &amp; safety</h3>
+      <ul><li>Your password is encrypted with Windows' own protection (DPAPI) and stays on this PC. If that is not available, it is only kept until you close the app.</li>
+      <li>Messages are shown in a locked box: no scripts, no forms, and pictures from the internet are blocked until you press <b>Load images</b>.</li>
+      <li>Links open in your normal browser.</li><li>Kugel Mail talks only to your mail servers — nothing else.</li></ul>
+      <h3>Keys</h3><p><b>Ctrl+N</b> write · <b>Ctrl+R</b> reply · <b>Delete</b> delete · <b>↑/↓</b> next/previous · <b>F5</b> check mail · <b>Ctrl+F</b> search · <b>Ctrl+Enter</b> send</p>
+    </div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
