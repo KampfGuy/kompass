@@ -135,6 +135,17 @@
     readResource: (n) => { n = String(n); if (!/^[A-Za-z0-9_-]+\.(md|txt|ks)$/.test(n)) return ''; return syncText(KS + n) || ''; },
     copyText: (t) => call('copyText', String(t)),
     saveTextFile: async (n, t) => (ANDROID ? callAsync('saveTextFile', String(n || 'kompass.txt'), String(t)) : ''),
+    // Kompass 1.7 desktop apps (file dialogs, 3D model library): not in the headset — the built-ins report it nicely
+    files: {
+      save: async () => ({ ok: false, error: 'Saving files is not available in Kompass VR' }),
+      open: async () => null,
+    },
+    models: {
+      save: () => ({ ok: false, error: 'The 3D model library is on Kompass for Windows' }),
+      list: () => [],
+      read: () => '',
+      remove: () => false,
+    },
     store: {
       index: async () => store().indexVR(storeOpts()),   // Kompass VR lists only the VR games (index-vr.json, tag "vr")
       code: async (id) => { const r = await store().get('entries/' + String(id) + '.ks', storeOpts()); return r.ok ? { ok: true, code: r.text, source: r.source } : r; },

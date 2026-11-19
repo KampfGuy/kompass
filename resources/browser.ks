@@ -9,7 +9,7 @@
 #  Look inside it while it runs: F12 / Ctrl+Shift+I = KampfScript DevTools.
 # ==================================================================
 
-let VERSION = "1.6.0"
+let VERSION = "1.7.0"
 let HOME = "kompass://home"
 
 # ---------------------------------------------------------- saved data

@@ -101,7 +101,7 @@ const pkg = JSON.parse(read('package.json'));
 // ---------------------------------------------------------------- version
 {
   const ks = read('resources/browser.ks');
-  assert.strictEqual(pkg.version, '1.6.0'); assert(ks.includes('let VERSION = "1.6.0"'));
-  ok('version 1.6.0');
+  assert(/^1\.([6-9]|\d\d)\./.test(pkg.version) && ks.includes('let VERSION = "' + pkg.version + '"'), 'browser.ks VERSION matches package.json');
+  ok('version ' + pkg.version + ' (1.6.0 or newer)');
 }
 console.log('\n' + passed + ' passed, 0 failed');

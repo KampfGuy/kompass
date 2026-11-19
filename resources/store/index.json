@@ -175,6 +175,54 @@
         "arcade",
         "community"
       ]
+    },
+    {
+      "id": "kugel-modeler",
+      "icon": "🧊",
+      "title": "Kugel 3D Modeler",
+      "author": "KampfGuy",
+      "description": "Blender-style 3D modeling that runs on weak PCs: shapes, edit vertices/faces, extrude, move/rotate/scale (G/R/S), materials, lights, render PNG, OBJ/glTF/GLB, send models to your 3D games. Needs Kompass 1.7.0+.",
+      "tags": [
+        "app",
+        "3d",
+        "modeling"
+      ]
+    },
+    {
+      "id": "kugel-blocks",
+      "icon": "🧩",
+      "title": "Kugel Blocks",
+      "author": "KampfGuy",
+      "description": "Make games with drag-and-drop blocks, like Scratch: sprites, costumes + paint editor, sounds, clones, variables, your own blocks. See the KampfScript your blocks make, export a playable game. Needs Kompass 1.7.0+.",
+      "tags": [
+        "app",
+        "game-maker",
+        "kids"
+      ]
+    },
+    {
+      "id": "kugel-blocks-3d",
+      "icon": "🎲",
+      "title": "Kugel Blocks 3D",
+      "author": "KampfGuy",
+      "description": "Make 3D games with blocks: actors, walk/jump/gravity, solid walls, follow and first-person cameras, sky/fog/light, models from the Kugel 3D Modeler, gamepads. Samples: Coin Run, Maze Walk, Space Dodge. Needs Kompass 1.7.0+.",
+      "tags": [
+        "app",
+        "3d",
+        "game-maker"
+      ]
+    },
+    {
+      "id": "kugel-mail",
+      "icon": "✉",
+      "title": "Kugel Mail",
+      "author": "KampfGuy",
+      "description": "Private email app for Windows (Gmail, Yahoo, any IMAP): folders, search, reply/forward, attachments, remote images blocked by default. A separate download (mail needs network access store pages don't have).",
+      "tags": [
+        "app",
+        "email",
+        "download"
+      ]
     }
   ]
 }

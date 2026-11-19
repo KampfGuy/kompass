@@ -24,6 +24,9 @@ function realBuiltins() {
   groups.three = [...k3.slice(k3.indexOf('    const api = {')).matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
   // Kompass VR: vr_* built-ins (also in src/kompass3d.js)
   groups.vr = [...k3.slice(k3.indexOf('    const vrApi = {'), k3.indexOf('    const api = {')).matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
+  // v1.7: app built-ins (src/host-apps.js) and 3D modelling built-ins (src/kompass3d-model.js)
+  groups.apps = [...fs.readFileSync(path.join(ROOT, 'src', 'host-apps.js'), 'utf8').matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
+  groups.model = [...fs.readFileSync(path.join(ROOT, 'src', 'kompass3d-model.js'), 'utf8').matchAll(/^\s{6}([a-z0-9_]+): B\(/gm)].map(m => m[1]);
   groups.editor = [...fs.readFileSync(path.join(ROOT, 'src', 'editor.js'), 'utf8').matchAll(/^\s{8}([a-z_]+): \{ fn:/gm)].map(m => m[1]);  // print is also a host override
   return { core, ...groups };
 }
@@ -46,7 +49,7 @@ async function runEx(code) {
 async function build() {
   const real = realBuiltins();
   const missing = [];
-  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page', 'three', 'vr']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
+  for (const g of ['core', 'ui', 'tabs', 'services', 'editor', 'page', 'three', 'vr', 'apps', 'model']) for (const n of real[g]) if (!DOCS[g] || !DOCS[g][n]) missing.push(g + '.' + n);
   if (missing.length) throw new Error('builtin-docs.js is missing: ' + missing.join(', '));
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
   const L = [];
@@ -126,7 +129,7 @@ async function build() {
     for (const n of real[g]) { const [sig, d] = DOCS[g][n]; P('| `' + sig.replace(/\|/g, '\\|') + '` | ' + d.replace(/\|/g, '\\|') + ' |'); }
     P('');
   };
-  P('## 7. Built-ins (' + (real.core.length + real.ui.length + real.tabs.length + real.services.length + real.editor.length + real.page.length + real.three.length) + ', generated from the source)', '');
+  P('## 7. Built-ins (' + (real.core.length + real.ui.length + real.tabs.length + real.services.length + real.editor.length + real.page.length + real.three.length + real.vr.length + real.apps.length + real.model.length) + ', generated from the source)', '');
   sec('7.1 Core (' + real.core.length + ') — available everywhere', 'core');
   sec('7.2 UI & styling (' + real.ui.length + ') — browser.ks, lesson stages and builder pages', 'ui', '`style` arguments are CSS class names (letters, digits, `-`, `_`). Colours are hex strings like `"#4285f4"`. In sandboxes/pages these are removed: on_key, set_window_title, set_theme, set_accent, confirm, every.');
   sec('7.3 Tabs & engine (' + real.tabs.length + ') — browser.ks only', 'tabs');
@@ -149,6 +152,14 @@ async function build() {
   P('```ks', '# swing a sword in VR (or with the mouse on a normal screen)', 'let s = scene3d(body())', 'vr_setup(s)', 'let blade = cube(s, 0.04, 0.04, 1, "#55ddff")', 'vr_attach(s, blade, "right")', 'move3d(blade, 0, 0, -0.5)',
     'let target = sphere(s, 0.25, "#ffaa00")', 'move3d(target, 0, 1.4, -1.2)', 'button(s, "Enter VR", fn() { print(vr_start(s)) })',
     'on_frame(fn(dt) {', '  let h = vr_hand(s, "right")', '  if h.speed > 2 and dist3d(blade, target) < 0.6 {', '    vr_haptic(s, "right", 0.8, 50)', '    move3d(target, random(-5, 5) / 10, 1.4, -1.2)', '  }', '})', '```', '');
+  sec('7.10 Apps: threads, sandboxed programs, images, sound, files (' + real.apps.length + ', v1.7) — everywhere the UI built-ins work', 'apps',
+    'What the Kugel Blocks apps are built from. `spawn` runs a function as its own thread (each Scratch-style script is one); a thread loop must call `next_frame()` or `wait(s)` each turn so the others get to run. `run_app(code, box)` starts a whole program in a fresh sandbox inside a box — the "green flag" of a game maker — and `stop_app` stops it. Files are only ever read or written through the user\'s own Open / Save dialogs.');
+  P('```ks', '# two threads at once', 'let c = canvas(body(), 200, 100)', 'let x = 0', 'spawn(fn() {', '  while true {', '    x = (x + 2) % 200', '    next_frame()', '  }', '})',
+    'spawn(fn() {', '  while true {', '    draw_clear(c, "#222")', '    draw_circle(c, x, 50, 10, "orange")', '    next_frame()', '  }', '})', 'button(body(), "Beep", fn() { sound("coin") })', '```', '');
+  sec('7.11 3D modelling (' + real.model.length + ', v1.7) — editable meshes, export / import and the shared model library', 'model',
+    'The Kugel 3D Modeler (Kugel Store) is written with these. Editable objects keep vertices and polygons you can select, move, extrude and export (OBJ / glTF / GLB). Models saved with `model_save` go into this PC\'s Kompass model library and any 3D game can `load_model(s, "name")` them — one object you can move3d / turn3d / solid3d like a cube.');
+  P('```ks', 'let s = scene3d(body())', 'orbit3d(s)', 'grid3d(s)', 'let box = mesh3d(s, "cube", "#4a90e2")', 'let top = mesh_extrude(box, [2], 1)   # pull face 2 out by 1 m', 'mesh_transform(box, top.verts, {scale: 0.5})',
+    'print(mesh_info(box))', 'model_save("my tower", export3d(box, "glb"))', '# later, in any game:', '# let t = load_model(s, "my tower")', '```', '');
   P('## 8. Kompass architecture', '',
     '- Kompass is an Electron app. `src/main.js` (main process) owns windows, files, the ad blocker, the password vault and context menus. `src/host.js` (renderer) runs `browser.ks` with the KampfScript interpreter and implements the native built-ins above. Web pages run in sandboxed Chromium `<webview>`s.',
     '- **browser.ks is the whole browser UI**: tab strip, toolbar, bookmarks, internal pages (`kompass://home`, `search`, `history`, `bookmarks`, `settings`, `about`, `learn`, `learn/ai`, `builder`, `passwords`, `page/<name>`), shortcuts. Users edit it with Ctrl+Shift+K → "★ browser.ks"; Settings → Reset restores the shipped one.',

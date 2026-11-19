@@ -1,10 +1,11 @@
 # 🧭 Kompass
 
-This repository has two apps, both built with **KampfScript** (`.ks`), the small language from
-[KampfOS](https://github.com/KampfGuy/kampfos):
+This repository has three apps:
 
-- **[Kompass for Windows](#-kompass-for-windows)**, a desktop web browser
+- **[Kompass for Windows](#-kompass-for-windows)**, a desktop web browser built with **KampfScript** (`.ks`), the small language from
+  [KampfOS](https://github.com/KampfGuy/kampfos). Its Kugel Store has the **Kugel apps**: a 3D modeler and two block-based game makers.
 - **[Kompass VR](#-kompass-vr-for-meta-quest)**, the same browser as an app for Meta Quest headsets
+- **[Kugel Mail](#-kugel-mail)**, a small private email app for Windows
 
 ---
 
@@ -36,6 +37,20 @@ and provides native built-ins.
 - **3D games API.** Over 40 built-ins on three.js: `scene3d`, `cube`, `sphere`, `move3d`, `camera3d`, `fps_controls`, `hits3d`, `ray3d`, `gamepad()`…
   - The `vr_*` built-ins also work on a normal screen (mouse = hand).
   - Try them at `kompass://games3d`, `kompass://maze3d` and `kompass://runner3d`.
+- **Kugel apps** (in the Kugel Store, need Kompass 1.7.0+). All three are plain KampfScript, made to run on a weak PC (integrated graphics, 4 GB RAM):
+  - **🧊 Kugel 3D Modeler** (`kompass://store/kugel-modeler`): Blender-style modeling. Orbit / pan / zoom viewport with grid, cube / sphere / cylinder / cone / plane / torus,
+    object and edit mode (select vertices / faces, box select), **extrude**, move / rotate / scale gizmo and **G / R / S** keys, subdivide, merge, smooth, join, undo / redo,
+    outliner, materials (colour, shiny, metal, glow, opacity, wireframe), studio / sunset / night lights, **Render** to PNG, save / open `.kmodel`,
+    **import and export OBJ, glTF and GLB**, and **To games**: save a model so any 3D game (and Kugel Blocks 3D) can `load_model` it. A ⚡ Performance switch makes it lighter.
+  - **🧩 Kugel Blocks** (`kompass://store/kugel-blocks`): make games with drag-and-drop blocks, like Scratch. Motion, looks, sound, events, control (with clones),
+    sensing, operators, variables, lists, pen and your own blocks; sprites with a costume library and a **paint editor**, backdrops, a stage you can drag sprites on.
+    Every block turns into readable KampfScript (the `{ } KampfScript` tab), and **⇩ Export game** makes a stand-alone `.ks` game you can publish.
+  - **🎲 Kugel Blocks 3D** (`kompass://store/kugel-blocks-3d`): the same editor for 3D games. Actors (shapes or your Modeler models), walk with arrows / WASD / gamepad,
+    jump, gravity, solid walls, touching, follow / first-person / fixed cameras, sky, fog, light and ground. Samples: Coin Run, Maze Walk, Space Dodge.
+
+  ![Kugel 3D Modeler](docs/kugel-modeler.png)
+  ![Kugel Blocks](docs/kugel-blocks.png)
+  ![Kugel Blocks 3D](docs/kugel-blocks-3d.png)
 - **Learn KampfScript** (`kompass://learn`, `F1`): 15 lessons with runnable examples, auto-checked exercises, saved progress and tutorial videos. Lessons ⑫–⑮ teach making 3D games. `kompass://learn/ai` is the full language reference to paste into an AI.
 - **⚡ Editor and console** (`Ctrl+Shift+K`): write and run your own `.ks` scripts, make your own `kompass://page/...` pages, or edit `browser.ks` and restart.
   - The **builder** (`kompass://builder`) makes a custom Google-style home page.
@@ -54,6 +69,14 @@ Your data (settings, bookmarks, history, scripts, your `browser.ks`) lives in `%
 - **The zip build** can't replace itself, so it shows "new version available → Download".
 - **Settings → Updates** has an Auto-update switch, a Check now button and your current version.
 
+### What's new in 1.7.0
+- **Three Kugel apps in the Kugel Store**: Kugel 3D Modeler, Kugel Blocks and Kugel Blocks 3D (see above).
+- **New built-ins for apps** (all documented in `kompass://learn/ai`): threads (`spawn`, `wait`, `next_frame`), running a program in its own sandbox
+  (`run_app` / `stop_app`), images on canvases (`draw_image`, `canvas_data`, `draw_fill`…), synthesised sounds (`beep`, `sound`), JSON,
+  saving / opening files **only through Windows' own Save / Open boxes** (`file_save`, `file_open`), editable 3D meshes (`mesh3d`, `mesh_extrude`…),
+  OBJ / glTF / GLB export and import, and a model library shared by all 3D games (`model_save`, `load_model`).
+- **Kugel Mail** is a new, separate app (below).
+
 ### What's new in 1.6.0
 - **Google sees an up-to-date browser.** Kompass 1.5 ran **Chromium 130** (late 2024) while Chrome is at 159, and its
   pages went out without Chrome's client hints. Kompass now runs **Electron 45 / Chromium 156** and sends a clean Chrome
@@ -68,7 +91,8 @@ Your data (settings, bookmarks, history, scripts, your `browser.ks`) lives in `%
 ```bash
 npm install
 npm start                 # run
-npm test                  # interpreter, browser.ks, lessons, 3D games, user-agent tests
+npm test                  # interpreter, browser.ks, lessons, 3D games, user-agent, Kugel apps tests
+node tools/build-blocks.js  # rebuild Kugel Blocks / Blocks 3D from kugel-apps/blocks/*.ks
 node tools/release.js     # build portable exe + zip + kompass-update.json + SHA512SUMS and publish (docs/RELEASING.md)
 ```
 
@@ -122,3 +146,36 @@ There's more detail in [`vr/README.md`](vr/README.md).
 
 ---
 MIT licensed.
+
+---
+
+## ✉ Kugel Mail
+
+### ⬇ Download
+**[Download Kugel Mail 1.0.0 for Windows](https://github.com/KampfGuy/kompass/releases/tag/kugel-mail-v1.0.0)** (`Kugel-Mail-1.0.0-portable.exe`, no install).
+It is not code-signed, so SmartScreen may warn: **More info → Run anyway**. It is also listed in the Kugel Store (`kompass://store/kugel-mail`).
+
+### Why a separate app?
+Email means talking straight to your mail server over IMAP and SMTP. Kugel Store programs run in a sandbox that cannot open network
+connections (that is what keeps them safe), so Kugel Mail is its own small Electron app. Its source is in [`apps/kugel-mail`](apps/kugel-mail).
+
+![Kugel Mail](docs/kugel-mail.png)
+
+### What it can do
+- Gmail, Yahoo and any IMAP/SMTP provider (presets + "Other"), several accounts. It checks receiving and sending before saving an account.
+- Folders with unread counts, newest first, search, read, reply, reply all, forward (with the original attachments), write with attachments, save attachments, mark unread, delete (to Trash).
+- **Private by default:** the password is encrypted with Windows' DPAPI (Electron `safeStorage`) and never shown to the window; mail is cleaned
+  (no scripts, forms or event handlers) and shown in a sandboxed frame; **pictures from the internet are blocked** until you press *Load images*; links open in your normal browser;
+  only SSL/TLS or STARTTLS connections are allowed (plain text only to `localhost`).
+- **Gmail and Yahoo need an app password** (Google: 2-Step Verification, then myaccount.google.com/apppasswords). The app explains this on the setup screen.
+- **Outlook.com / Hotmail:** Microsoft switched personal accounts to OAuth-only sign-in, which Kugel Mail 1.0 does not support yet, so they will probably be refused.
+
+### Build / test
+```bash
+cd apps/kugel-mail
+npm install
+npm start
+npm test        # sanitizer + IMAP/SMTP tests against a local GreenMail server (see test/README.md)
+npm run dist:win
+```
+Kugel Mail does not update itself; new versions appear on the releases page and in the Kugel Store.
