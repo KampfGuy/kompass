@@ -604,3 +604,145 @@ body.ks-fullscreen .stage-fs > .bld-stage, body.ks-fullscreen .stage-fs > .app-s
   .kcalc-histbtn { display:inline-block; }
   .kcalc.dark .kcalc-side { background:#202020; } .kcalc-side { background:#f3f3f3; }
 }
+/* ---------------- v1.8 Arithmetricks Premium (satirical pay-to-win game, Kugel Store) ---------------- */
+.pa { flex-direction:column; }
+.pa [hidden] { display:none !important; }
+.pa-main { flex:1; min-height:0; display:flex; gap:0; align-items:stretch; }
+.pa-calc { width:360px; flex:0 0 360px; display:flex; flex-direction:column; position:relative; border-right:1px solid rgba(127,127,127,.25); padding:0 6px 0; min-height:0; overflow:hidden; }
+.pa-head { padding-right:8px; }
+.pa-badge { font-size:10px; font-weight:700; color:#8a6200; background:#fceec4; border-radius:4px; padding:2px 6px; }
+.pa-hbtn { background:transparent; border:0; color:inherit; font-size:12.5px; padding:6px 8px; border-radius:5px; cursor:pointer; }
+.pa-hbtn:hover { background:rgba(127,127,127,.15); }
+.pa-problem { font-size:12.5px; opacity:.8; padding:2px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:18px; }
+.pa-overdue { font-size:12px; font-weight:700; color:#c42b1c; padding:0 10px; min-height:16px; }
+.pa-offer { align-self:flex-end; background:transparent; border:0; color:#005fb8; font-size:12.5px; cursor:pointer; padding:2px 10px; min-height:20px; }
+.pa-offer:hover { text-decoration:underline; }
+.kcalc.dark .pa-offer { color:#4cc2ff; }
+.pa-status { text-align:right; font-size:12.5px; opacity:.85; padding:2px 10px; min-height:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pa-status.bad, .pa-bad { color:#c42b1c; } .pa-status.good, .pa-good { color:#0f7b0f; }
+.pa-bad:empty { display:none; }
+.pa-keys { min-height:240px; }
+.pa .kcalc-k { position:relative; }
+.pa .kcalc-k.locked { opacity:.55; } .pa .kcalc-k.locked::after { content:"🔒"; position:absolute; top:3px; right:5px; font-size:9px; opacity:.8; }
+.pa .kcalc-k.repo::after { content:"⛔"; opacity:1; }
+.pa-sponsor { font-size:11.5px; text-align:center; opacity:.7; padding:5px 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-top:1px solid rgba(127,127,127,.2); }
+.pa-menu { top:44px; }
+.pa-tag { margin-left:auto; font-size:10px; font-weight:700; color:#005fb8; background:#e6f0fa; padding:1px 6px; border-radius:4px; }
+.pa-right { flex:1; min-width:0; display:flex; flex-direction:column; background:#fafafa; color:#1b1b1b; min-height:0; }
+.pa-tabs { gap:2px; padding:6px 92px 0 8px; border-bottom:1px solid #e1e1e1; background:#f3f3f3; align-items:flex-end; flex-wrap:wrap; }
+.pa-tab { background:transparent; border:0; border-bottom:3px solid transparent; color:#1b1b1b; padding:7px 10px 6px; font:inherit; font-size:13px; cursor:pointer; border-radius:5px 5px 0 0; }
+.pa-tab:hover { background:rgba(0,0,0,.05); } .pa-tab.on { border-bottom-color:#005fb8; font-weight:600; background:#fafafa; }
+.pa-page { flex:1; overflow-y:auto; padding:12px 16px 16px; gap:10px; display:flex; flex-direction:column; min-height:0; }
+.pa-body { gap:10px; display:flex; flex-direction:column; flex:0 0 auto; }
+.pa-foot { font-size:11px; text-align:center; padding:4px; background:#fffbe6; color:#6b5a00; border-top:1px solid #efe3a6; }
+.kcalc.dark .pa-foot { background:#2a2614; color:#d8c97a; border-top-color:#4a4320; }
+.pa-pagehead { align-items:flex-start; gap:8px; }
+.pa-h1 { font-size:24px; font-weight:700; margin:0; } .pa-h2 { font-size:19px; font-weight:700; margin:0; } .pa-h3 { font-size:14.5px; font-weight:700; margin:0; }
+.pa-sub { font-size:12.5px; color:#616161; } .pa-fine { font-size:11px; color:#7a7a7a; }
+.pa-sub.bad { color:#c42b1c; }
+.pa-link { background:transparent; border:0; color:#005fb8; cursor:pointer; font:inherit; font-size:12.5px; padding:4px; }
+.pa-link:hover { text-decoration:underline; }
+.pa-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px; }
+.pa-card { background:#fff; border:1px solid #e3e3e3; border-radius:8px; padding:12px 14px; gap:6px; display:flex; flex-direction:column; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.pa-prod { min-height:150px; }
+.pa-prodtop { gap:10px; align-items:center; }
+.pa-glyph { width:40px; height:40px; flex:0 0 40px; border-radius:8px; background:#e6f0fa; color:#005fb8; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.pa-glyph.big { width:56px; height:56px; flex-basis:56px; font-size:16px; }
+.pa-pname { font-weight:700; font-size:13.5px; }
+.pa-note { font-size:11px; color:#7a7a7a; min-height:14px; } .pa-note.bad { color:#c42b1c; }
+.pa-blurb { font-size:12px; color:#616161; flex:1; }
+.pa-btn { background:#fff; color:#1b1b1b; border:1px solid #d1d1d1; border-radius:5px; padding:6px 14px; font:inherit; font-size:13px; cursor:pointer; white-space:nowrap; }
+.pa-btn:hover { background:#f5f5f5; } .pa-btn:disabled { opacity:.5; cursor:default; }
+.pa-btn.accent { background:#005fb8; color:#fff; border-color:#005fb8; } .pa-btn.accent:hover { background:#196ebf; }
+.pa-btn.danger { background:#c42b1c; color:#fff; border-color:#c42b1c; }
+.pa-btn.ink { background:#1f2a44; color:#fff; border-color:#1f2a44; }
+.pa-btn.answer { background:#107c10; color:#fff; border-color:#107c10; }
+.pa-buy { align-self:flex-end; min-width:100px; }
+.pa-storestatus { padding:4px 2px; }
+.pa-row { display:flex; align-items:center; gap:8px; } .pa-row.pa-top { align-items:flex-start; }
+.pa-bankhead { background:#0b2d4f; color:#fff; margin:-12px -16px 4px; padding:14px 18px; gap:22px; align-items:center; }
+.pa-banklogo { font-size:20px; font-weight:700; } .pa-banknav { font-size:12.5px; color:#c8d7eb; }
+.pa-chip { font-size:11px; font-weight:700; color:#fff; padding:3px 10px; border-radius:4px; background:#0f7b0f; }
+.pa-chip.blue { background:#005fb8; } .pa-chip.amber { background:#ca8000; } .pa-chip.bad { background:#c42b1c; } .pa-chip.gray { background:#7a7a7a; }
+.pa-banktop { display:flex; gap:14px; flex-wrap:wrap; }
+.pa-ccard { width:320px; height:196px; border-radius:14px; padding:16px 18px; color:#fff; background:linear-gradient(135deg, #0b2d4f, #1d5c96 60%, #3d8bd4); box-shadow:0 6px 16px rgba(11,45,79,.35); display:flex; flex-direction:column; gap:6px; }
+.pa-ccard.closed { background:linear-gradient(135deg, #555, #888); }
+.pa-cbrand { font-weight:700; font-size:14px; } .pa-cnet { font-weight:800; font-style:italic; letter-spacing:1px; }
+.pa-chipgfx { width:42px; height:30px; border-radius:6px; background:linear-gradient(135deg, #e9d48a, #c8a84a); margin-top:6px; }
+.pa-cnum { font-family:"Kompass Mono", Consolas, monospace; font-size:19px; letter-spacing:1.5px; margin-top:4px; }
+.pa-cname { font-size:12.5px; letter-spacing:.8px; } .pa-cexp { font-size:11px; opacity:.85; }
+.pa-cfine { font-size:9.5px; opacity:.75; margin-top:auto; }
+.pa-sum { flex:1; min-width:250px; gap:4px; }
+.pa-balance { font-size:28px; font-weight:700; }
+.pa-srow { display:flex; gap:8px; align-items:center; } .pa-sval { font-weight:700; font-size:12.5px; }
+.pa-sval.bad { color:#c42b1c; } .pa-sval.good { color:#0f7b0f; } .pa-sval.amber, .pa-sub.amber { color:#ca8000; }
+.pa-gauge { position:relative; height:10px; border-radius:5px; margin-top:6px; background:linear-gradient(90deg, #c42b1c, #ca8000 45%, #0f7b0f 80%, #0a5a0a); }
+.pa-gmark { position:absolute; top:-4px; width:4px; height:18px; margin-left:-2px; background:#1b1b1b; border-radius:2px; }
+.pa-alert { background:#fff; border:1px solid #e3e3e3; border-radius:8px; padding:10px 14px; gap:10px; }
+.pa-alert.amber { background:#fff4ce; } .pa-alert.bad { background:#fde7e9; border-color:#f4c2c5; } .pa-alert.gray { background:#f0f0f0; }
+.pa-alerttext { font-size:13px; flex:1; }
+.pa-actrow { margin-top:4px; }
+.pa-stmt { background:#fff; border:1px solid #e3e3e3; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; }
+.pa-strow { display:flex; gap:10px; padding:5px 10px; border-bottom:1px solid #f0f0f0; font-size:12.5px; }
+.pa-sthead { font-weight:700; background:#f6f6f6; }
+.pa-stt { width:56px; flex:0 0 56px; color:#7a7a7a; font-variant-numeric:tabular-nums; } .pa-std { flex:1; min-width:0; }
+.pa-sta { width:96px; text-align:right; font-variant-numeric:tabular-nums; } .pa-sta.good { color:#0f7b0f; }
+.pa-form { max-width:520px; gap:6px; }
+.pa-lbl { font-size:12.5px; font-weight:700; margin-top:6px; }
+.pa-in, .pa-dd { background:#fff; color:#1b1b1b; border:1px solid #c8c8c8; border-radius:5px; padding:6px 9px; font:inherit; font-size:13.5px; }
+.pa-check { font-size:12.5px; }
+.pa-apply { margin-top:8px; }
+.pa-jobhead { background:#005f5a; color:#fff; margin:-12px -16px 4px; padding:10px 18px; gap:0; }
+.pa-jobbrand { font-size:17px; font-weight:700; } .pa-jobsub { font-size:11.5px; color:#bee1dc; }
+.pa-stats { white-space:pre-line; font-size:13px; line-height:1.55; }
+.pa-mcol { width:220px; gap:4px; }
+.pa-meter { position:relative; height:16px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
+.pa-mfill { height:100%; background:#0f7b0f; border-radius:8px; } .pa-mfill.amber { background:#ca8000; } .pa-mfill.bad { background:#c42b1c; }
+.pa-mval { position:absolute; right:8px; top:0; font-size:11px; font-weight:700; line-height:16px; }
+.pa-pre { white-space:pre-line; font-size:13px; line-height:1.55; color:#444; }
+.pa-shifthead { gap:14px; } .pa-timer { font-weight:700; font-size:15px; }
+.pa-counter { flex-direction:row; gap:14px; align-items:flex-start; }
+.pa-avatar { width:64px; height:64px; flex:0 0 64px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px; }
+.pa-cust { gap:3px; flex:1; } .pa-request { font-style:italic; font-size:14px; margin-top:4px; }
+.pa-reply { font-size:13px; margin-top:4px; } .pa-reply.good { color:#0f7b0f; } .pa-reply.bad { color:#c42b1c; }
+.pa-pitches { gap:5px; } .pa-pitch { text-align:left; }
+.pa-mgr { flex:1; font-size:12.5px; }
+.pa-graph { gap:10px; height:440px; align-items:stretch; }
+.pa-gleft { width:250px; flex:0 0 250px; }
+.pa-fx { gap:6px; align-items:center; } .pa-swatch { width:6px; height:22px; border-radius:2px; } .pa-fxin { flex:1; min-width:0; }
+.pa-plot { flex:1; position:relative; min-width:200px; border:1px solid #e3e3e3; border-radius:8px; overflow:hidden; background:#fff; }
+.pa-courthead { background:#1f2a44; color:#fff; margin:-12px -16px 4px; padding:12px 18px; gap:3px; }
+.pa-courttitle { font-size:16px; font-weight:700; } .pa-courtsub { font-size:11.5px; color:#bec8dc; }
+.pa-court { max-width:620px; }
+.pa-sect { background:#e8ecf4; color:#1f2a44; font-weight:700; font-size:12.5px; padding:5px 10px; border-radius:4px; margin-top:8px; }
+.pa-sigcol { flex:1; } .pa-sig { font-family:cursive; font-size:20px; border:0; border-bottom:1px solid #1f2a44; background:#f8f9fc; padding:4px 8px; color:#1f2a44; }
+.pa-modal { position:absolute; inset:0; background:rgba(0,0,0,.32); display:flex; align-items:center; justify-content:center; z-index:40; }
+.pa-dialog { background:#fff; color:#1b1b1b; border-radius:10px; padding:20px 22px 16px; width:440px; max-width:92%; gap:8px; box-shadow:0 18px 50px rgba(0,0,0,.35); max-height:88%; overflow-y:auto; }
+.pa-price { font-size:20px; font-weight:700; margin-top:6px; }
+.pa-dbar { display:flex; gap:8px; align-items:center; margin:10px -22px -16px; padding:12px 22px; background:#f3f3f3; border-radius:0 0 10px 10px; }
+.pa-subrow { padding:8px 0; border-bottom:1px solid #eee; }
+.pa-check-ok { width:40px; height:40px; flex:0 0 40px; border-radius:50%; background:#0f7b0f; color:#fff; font-size:22px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.pa-toasts { position:absolute; right:12px; bottom:30px; width:340px; gap:8px; display:flex; flex-direction:column; z-index:50; pointer-events:none; }
+.pa-toast { pointer-events:auto; background:#f9f9f9; color:#1b1b1b; border:1px solid #d7d7d7; border-left:4px solid #c42b1c; border-radius:6px; padding:8px 12px 10px; box-shadow:0 8px 24px rgba(0,0,0,.2); gap:2px; }
+.pa-toast.reminder, .pa-toast.job, .pa-toast.sub { border-left-color:#005fb8; } .pa-toast.pastdue { border-left-color:#ca8000; }
+.pa-ttitle { font-weight:700; font-size:13.5px; } .pa-tbody { font-size:12.5px; color:#3c3c3c; }
+.pa-x { background:transparent; border:0; color:#7a7a7a; cursor:pointer; padding:0 2px; }
+.pa-call { position:absolute; right:12px; top:52px; width:300px; background:#202020; color:#fff; border-radius:10px; padding:14px 18px; gap:4px; z-index:55; box-shadow:0 12px 32px rgba(0,0,0,.45); display:flex; flex-direction:column; }
+.pa-ctitle { font-size:16px; font-weight:700; } .pa-cbody { font-size:12.5px; color:#ddd; margin:4px 0 8px; }
+.pa-call .pa-btn { flex:1; }
+.kcalc.dark .pa-right { background:#202020; color:#f0f0f0; } .kcalc.dark .pa-tabs { background:#272727; border-bottom-color:#3a3a3a; }
+.kcalc.dark .pa-tab { color:#f0f0f0; } .kcalc.dark .pa-tab.on { background:#202020; border-bottom-color:#4cc2ff; }
+.kcalc.dark .pa-card, .kcalc.dark .pa-stmt, .kcalc.dark .pa-alert, .kcalc.dark .pa-plot { background:#2b2b2b; border-color:#3a3a3a; color:#f0f0f0; }
+.kcalc.dark .pa-strow { border-bottom-color:#353535; } .kcalc.dark .pa-sthead { background:#323232; }
+.kcalc.dark .pa-sub, .kcalc.dark .pa-blurb, .kcalc.dark .pa-pre { color:#c5c5c5; }
+.kcalc.dark .pa-btn { background:#323232; color:#f0f0f0; border-color:#454545; } .kcalc.dark .pa-btn.accent { background:#4cc2ff; color:#000; border-color:#4cc2ff; }
+.kcalc.dark .pa-in, .kcalc.dark .pa-dd { background:#2d2d2d; color:#fff; border-color:#454545; }
+@container (max-width: 760px) {
+  .pa-main { flex-direction:column; overflow-y:auto; }
+  .pa-calc { width:auto; flex:0 0 auto; border-right:0; border-bottom:1px solid rgba(127,127,127,.25); min-height:560px; }
+  .pa-right { flex:0 0 auto; min-height:520px; }
+}
+.kcalc .ks-textbox.kcalc-in, .pa .ks-textbox.pa-in, .pa .ks-dropdown.pa-dd { background:#fff; color:#1b1b1b; border:1px solid #c8c8c8; border-radius:5px; padding:6px 9px; box-shadow:none; }
+.kcalc.dark .ks-textbox.kcalc-in, .kcalc.dark .ks-textbox.pa-in, .kcalc.dark .ks-dropdown.pa-dd { background:#2d2d2d; color:#fff; border-color:#454545; }
+.pa .ks-textbox.pa-sig { background:#f8f9fc; color:#1f2a44; border:0; border-bottom:1px solid #1f2a44; border-radius:0; font-family:cursive; font-size:20px; padding:4px 8px; }
+.pa .ks-textbox:focus { border-color:#005fb8; box-shadow:0 0 0 2px rgba(0,95,184,.2); }

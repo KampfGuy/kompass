@@ -235,6 +235,18 @@
         "work",
         "calculator"
       ]
+    },
+    {
+      "id": "arithmetricks-premium",
+      "icon": "💸",
+      "title": "Arithmetricks Premium",
+      "author": "KampfGuy",
+      "description": "Satirical pay-to-win calculator game: buy the digits, the equals sign is extra, CalcBank debt tiers, a $100/min Premium subscription, the Employee Portal and Chapter 7. Fake money only, fully offline. Needs Kompass 1.8.0+.",
+      "tags": [
+        "game",
+        "satire",
+        "simulation"
+      ]
     }
   ]
 }
