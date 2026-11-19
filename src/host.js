@@ -141,6 +141,16 @@
       togglestyle: B(([x, s, on]) => { el(x, 'togglestyle()').classList.toggle(styleOk(S(s)), on === undefined ? undefined : K.truthy(on)); return null; }, 2, 3),
       show: B(([x, on]) => { el(x, 'show()').hidden = on === undefined ? false : !K.truthy(on); return null; }, 1, 2),
       enable: B(([x, on]) => { el(x, 'enable()').disabled = !K.truthy(on); return null; }, 2, 2),
+      // v1.8: wrap the selection of a textbox / codebox (or insert at the caret) — editor toolbars (Kugel Notes, Prism, Lattice)
+      text_insert: B(([x, before, after]) => {
+        if (!x || x.kind !== 'textbox') throw new KError('text_insert() needs a textbox or codebox');
+        const e = el(x, 'text_insert()'); const b = S(before == null ? '' : before), a = S(after == null ? '' : after);
+        const s0 = e.selectionStart == null ? e.value.length : e.selectionStart, s1 = e.selectionEnd == null ? s0 : e.selectionEnd;
+        const sel = e.value.slice(s0, s1); e.setRangeText(b + sel + a, s0, s1, 'end');
+        if (!sel && a) { const p = s0 + b.length; e.setSelectionRange(p, p); } else if (sel) e.setSelectionRange(s0 + b.length, s0 + b.length + sel.length);
+        e.focus(); e.dispatchEvent(new Event('input', { bubbles: true })); return null;
+      }, 2, 3),
+      text_selection: B(([x]) => { const e = el(x, 'text_selection()'); return toK({ start: e.selectionStart || 0, end: e.selectionEnd || 0, text: e.value ? e.value.slice(e.selectionStart || 0, e.selectionEnd || 0) : '' }); }, 1, 1),
       focus: B(([x]) => { const e = el(x, 'focus()'); setTimeout(() => { e.focus(); if (e.select) e.select(); }, 20); return null; }, 1, 1),
       on_click: B(([x, f]) => { const e0 = el(x, 'on_click()'); e0.addEventListener('click', (e) => { e.stopPropagation(); cb(f, 'click: ' + x.kind + ' ' + (e0.textContent || '').trim().slice(0, 18))(); }); return null; }, 2, 2),
       on_middle_click: B(([x, f]) => { el(x, 'on_middle_click()').addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); cb(f, 'middle-click')(); } }); return null; }, 2, 2),

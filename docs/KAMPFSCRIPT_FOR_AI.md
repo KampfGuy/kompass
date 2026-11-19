@@ -97,7 +97,7 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 - Errors try to help: typos suggest the closest name (`pirnt` → did you mean print?), `s.length` says use len(s), `x++` says write x += 1, `&&` says use and.
 - `error("msg")` raises your own error. Common errors: Unknown name, index out of range, Can't add list and number, X expects N arguments.
 
-## 7. Built-ins (371, generated from the source)
+## 7. Built-ins (373, generated from the source)
 
 ### 7.1 Core (73) — available everywhere
 
@@ -177,7 +177,7 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 | `rgb(r, g, b, a?) -> string` | Colour text "rgb(...)" / "rgba(...)" from 0..255 numbers (a: 0..1). |
 | `vangle(v)` | Direction of a vector, atan2(v.y, v.x). |
 
-### 7.2 UI & styling (81) — browser.ks, lesson stages and builder pages
+### 7.2 UI & styling (83) — browser.ks, lesson stages and builder pages
 
 `style` arguments are CSS class names (letters, digits, `-`, `_`). Colours are hex strings like `"#4285f4"`. In sandboxes/pages these are removed: on_key, set_window_title, set_theme, set_accent, confirm, every.
 
@@ -211,6 +211,8 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 | `togglestyle(el, name, on?)` | Toggle (or force) a CSS class. |
 | `show(el, on?)` | Show (default) or hide an element. |
 | `enable(el, on)` | Enable/disable a control. |
+| `text_insert(box, before, after?)` | Wrap the selected text of a textbox / codebox in before + after (or insert at the caret) — for editor toolbars. |
+| `text_selection(box) -> {start, end, text}` | Where the selection of a textbox / codebox is. |
 | `focus(el)` | Focus (and select) an element. |
 | `on_click(el, fn)` | Run fn() when the element is clicked. |
 | `on_middle_click(el, fn)` | Run fn() on middle click. |
@@ -560,7 +562,7 @@ What the Kugel Blocks apps are built from. `spawn` runs a function as its own th
 | `zip_create({name: text or data URL, ...}, compress?) -> url` | Make a ZIP file (data URL); .pptx and .xlsx files are ZIPs of XML. |
 | `zip_read(url) -> {name: text or data URL}` | Read a ZIP data URL (from file_open): text files as text, images as data URLs. |
 | `xml_parse(text) -> {tag, attrs, children, text} \| nil` | Parse XML into nested maps (namespaced tags like "a:t" kept). |
-| `file_save(name, text_or_data_url) -> {ok, path?}` | Save a file through the normal Windows "Save as" box (the user chooses where). Allowed endings: .ks .txt .json .csv .md .obj .gltf .glb .png .jpg .svg .html .kmodel .kblocks .kblocks3d .wav; data: URLs are saved as binary. |
+| `file_save(name, text_or_data_url) -> {ok, path?}` | Save a file through the normal Windows "Save as" box (the user chooses where). Allowed endings: .ks .txt .json .csv .md .obj .gltf .glb .png .jpg .svg .html .kmodel .kblocks .kblocks3d .wav .gif .webm .pptx .xlsx .kpaint .kmotion .kvector .kprism .knotes .klattice; data: URLs are saved as binary. |
 | `file_open(extensions?) -> {ok, name, text\|data} \| nil` | Let the user pick a file in the normal "Open" box (e.g. ["obj", "glb"]); nil if cancelled. Binary files come back as a data: URL. |
 
 ```ks

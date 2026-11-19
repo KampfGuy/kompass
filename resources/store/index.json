@@ -247,6 +247,18 @@
         "satire",
         "simulation"
       ]
+    },
+    {
+      "id": "kugel-notes",
+      "icon": "🗒",
+      "title": "Kugel Notes",
+      "author": "KampfGuy",
+      "description": "Notes with folders, Markdown formatting, checklists, pins and search. Import and export .md / .txt. Everything stays on this PC. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "notes"
+      ]
     }
   ]
 }
