@@ -588,7 +588,7 @@ fn find_snap() {
   let x0 = first._x
   let y0 = first._y
   let best = nil
-  let bd = 30
+  let bd = 48   # generous, like Scratch: kids should not have to be pixel-perfect
   if is_value(fsh) {
     let cx = x0
     let cy = y0 + first._h / 2
