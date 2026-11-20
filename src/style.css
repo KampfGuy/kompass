@@ -881,3 +881,11 @@ body.ks-fullscreen .stage-fs > .bld-stage, body.ks-fullscreen .stage-fs > .app-s
 .kd-right .kd-laylist { max-height:220px; flex-shrink:0; }
 .kapp .kd-xywh .ks-textbox.kd-fin { width:50px; min-width:0; flex:1 1 50px; }
 .kapp .kd-frow .ks-textbox.kd-hex { flex:1; width:auto; }
+.kd-tlbar { flex-shrink:0; display:flex; align-items:center; gap:4px; padding:4px 8px; background:#272b34; border-top:1px solid #353a46; }
+.kd-frlabel { margin-left:8px; }
+.kd-timeline { flex-shrink:0; display:flex; align-items:stretch; gap:4px; padding:6px 8px; background:#1d2027; overflow-x:auto; overflow-y:hidden; min-height:74px; }
+.kd-frame { display:flex; flex-direction:column; align-items:center; gap:2px; padding:3px; border-radius:6px; border:1px solid #353a46; background:#23262e; cursor:pointer; flex-shrink:0; }
+.kd-frame:hover { border-color:#ff8c1a88; } .kd-frame.on { border-color:#ff8c1a; background:#ff8c1a26; }
+.kd-frame.add { width:44px; justify-content:center; color:#cfd3dc; font-size:20px; font:inherit; }
+.kd-fthumb { border-radius:3px; } .kd-fnum { font-size:10.5px; color:#9aa1b2; }
+.kd-val { white-space:nowrap; }

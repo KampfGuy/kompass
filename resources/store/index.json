@@ -295,6 +295,18 @@
         "design",
         "vector"
       ]
+    },
+    {
+      "id": "kugel-motion",
+      "icon": "🎞",
+      "title": "Kugel Motion",
+      "author": "KampfGuy",
+      "description": "Animation like a small Adobe Animate: frame-by-frame drawing on a timeline, keyframed shapes with tweening, onion skin, playback, GIF / WebM / sprite sheet export for your games. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "animation"
+      ]
     }
   ]
 }
