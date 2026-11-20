@@ -1,6 +1,6 @@
 # ============================================================================
 #  🔷 Kugel Prism — Kugel Store app for Kompass 1.8+ (written in KampfScript)
-#  Slides and presentations: themes, text, shapes and images, fullscreen presenting, .pptx import / export and PNG export.
+#  Slides and presentations: themes, layouts, text with bullets, shapes and pictures, speaker notes, fullscreen presenting, .pptx import / export and PNG export.
 #  Built by tools/build-apps.js from kugel-apps/work/kit.ks, kugel-apps/work/prism.ks
 # ============================================================================
 

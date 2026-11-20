@@ -1,6 +1,6 @@
 # ============================================================================
 #  ✒ Kugel Vector — Kugel Store app for Kompass 1.8+ (written in KampfScript)
-#  Vector graphics like a small Illustrator: rectangles, ellipses, lines, stars, pen paths, text, fill / stroke, layers order, align and distribute, SVG and PNG export.
+#  Vector graphics like a small Illustrator: rectangles, ellipses, lines, stars, pen and freehand paths, text, fill / stroke, resize / rotate handles, arrange and align, SVG import, SVG and PNG export.
 #  Built by tools/build-apps.js from kugel-apps/design/kit.ks, kugel-apps/design/vector.ks
 # ============================================================================
 

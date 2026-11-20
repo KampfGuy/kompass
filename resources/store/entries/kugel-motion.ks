@@ -1,6 +1,6 @@
 # ============================================================================
 #  🎞 Kugel Motion — Kugel Store app for Kompass 1.8+ (written in KampfScript)
-#  Animation like a small Adobe Animate: frame-by-frame drawing on a timeline, keyframed shapes with tweening, onion skin, playback, GIF / WebM / sprite sheet export for your games.
+#  Animation like a small Adobe Animate: frame-by-frame drawing on a timeline, a background layer, onion skin, in-between (tween) frames, playback, GIF / WebM / sprite sheet export for your games.
 #  Built by tools/build-apps.js from kugel-apps/design/kit.ks, kugel-apps/design/motion.ks
 # ============================================================================
 

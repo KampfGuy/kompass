@@ -173,6 +173,12 @@
       onOffer: () => {},
       onLocked: (f) => on('pw-locked', f),
     },
+    // Kugel Mail (Kompass 1.8.0) is a separate Windows app; Kompass VR cannot install or launch it
+    kmail: {
+      status: () => ({ installed: false, path: '', version: '', windows: false, status: 'idle', progress: 0, error: '' }),
+      launch: () => ({ ok: false, error: 'Kugel Mail is a Windows app and is not available in Kompass VR' }),
+      install: async () => ({ installed: false, path: '', version: '', windows: false, status: 'error', progress: 0, error: 'Kugel Mail is a Windows app and is not available in Kompass VR' }),
+    },
     update: {
       state: () => Object.assign({}, upd),
       check: updCheck,

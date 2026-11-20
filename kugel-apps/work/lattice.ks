@@ -344,6 +344,7 @@ fn criteria(cr) {
   let target = literal(s)
   return fn(v) {
     if op == "=" and type(target) == "string" and contains(target, "*") { return startswith(lower(to_text(v)), lower(replace(target, "*", ""))) }
+    if type(target) == "number" and type(v) != "number" { return op == "<>" }
     let c = compare(v, target)
     if op == "=" { return c == 0 }
     if op == "<>" { return c != 0 }

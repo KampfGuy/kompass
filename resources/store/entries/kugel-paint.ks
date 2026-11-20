@@ -1,6 +1,6 @@
 # ============================================================================
 #  🖌 Kugel Paint — Kugel Store app for Kompass 1.8+ (written in KampfScript)
-#  Painting like a small Photoshop / Fresco: layers with opacity and blend modes, brushes, eraser, fill, shapes, selection (copy / move / crop), filters, undo, PNG import / export.
+#  Painting like a small Photoshop / Fresco: layers, brush, pencil, eraser, fill, shapes, text, colour picker, selections, filters, flip / rotate / resize, undo, PNG / JPG import and PNG export.
 #  Built by tools/build-apps.js from kugel-apps/design/kit.ks, kugel-apps/design/paint.ks
 # ============================================================================
 

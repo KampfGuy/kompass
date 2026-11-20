@@ -1549,7 +1549,7 @@ fn page_for_script(title) {
 let DESIGN_APPS = [
   ["kugel-modeler", "🧊", "Kugel 3D Modeler", "Blender-style 3D modelling"],
   ["kugel-paint", "🖌", "Kugel Paint", "Painting: layers, brushes, selections, filters"],
-  ["kugel-motion", "🎞", "Kugel Motion", "Animation: timeline, keyframes, onion skin, GIF / sprite sheets"],
+  ["kugel-motion", "🎞", "Kugel Motion", "Animation: frames, onion skin, tweens, GIF / video / sprite sheets"],
   ["kugel-vector", "✒", "Kugel Vector", "Vector graphics: shapes, pen, text, SVG"]
 ]
 let WORK_APPS = [
