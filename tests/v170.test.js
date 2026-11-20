@@ -14,8 +14,8 @@ const g = (m, k) => (m instanceof K.KMap ? m.m.get(k) : undefined);
 (async () => {
   // ---------------------------------------------------------------- version
   const pkg = JSON.parse(read('package.json'));
-  assert.strictEqual(pkg.version, '1.7.0'); assert(read('resources/browser.ks').includes('let VERSION = "1.7.0"'));
-  assert(/'1\.7\.0'/.test(read('src/kompass3d.js')));
+  assert(/^1\.([7-9]|\d\d)\.|^[2-9]\./.test(pkg.version)); assert(read('resources/browser.ks').includes('let VERSION = "' + pkg.version + '"'));
+  assert(read('src/kompass3d.js').includes("'" + pkg.version + "'"));
   ok('version 1.7.0 everywhere');
 
   // ---------------------------------------------------------------- mesh maths (pure)

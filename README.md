@@ -3,7 +3,8 @@
 This repository has three apps:
 
 - **[Kompass for Windows](#-kompass-for-windows)**, a desktop web browser built with **KampfScript** (`.ks`), the small language from
-  [KampfOS](https://github.com/KampfGuy/kampfos). Its Kugel Store has the **Kugel apps**: a 3D modeler and two block-based game makers.
+  [KampfOS](https://github.com/KampfGuy/kampfos). A left sidebar opens **Kugel Game Designer** (games), **Kugel Design** (3D Modeler, Paint, Motion, Vector) and **Kugel Work**
+  (Mail, Prism slides, Notes, Lattice sheets, Arithmetricks calculator). Except Kugel Mail, they are all Kugel Store apps written in KampfScript.
 - **[Kompass VR](#-kompass-vr-for-meta-quest)**, the same browser as an app for Meta Quest headsets
 - **[Kugel Mail](#-kugel-mail)**, a small private email app for Windows
 
@@ -37,6 +38,21 @@ and provides native built-ins.
 - **3D games API.** Over 40 built-ins on three.js: `scene3d`, `cube`, `sphere`, `move3d`, `camera3d`, `fps_controls`, `hits3d`, `ray3d`, `gamepad()`…
   - The `vr_*` built-ins also work on a normal screen (mouse = hand).
   - Try them at `kompass://games3d`, `kompass://maze3d` and `kompass://runner3d`.
+- **The sidebar (1.8.0).** Press **☰** (or `Ctrl+B`) for a sidebar on the left with three sections. Every app runs offline and keeps its data on your PC:
+  - **🎮 Kugel Game Designer**: every game in the Kugel Store, plus your own pages. The Designer itself replaces the old page builder (`kompass://builder`).
+    It has a ⛶ **fullscreen** button, and a game opened with ▶ Play can go fullscreen with `F11`. The first time you open it, it makes a starter project called "My first game".
+  - **🎨 Kugel Design**: 3D Modeler, **Kugel Paint** (layers, brushes, fill, shapes, text, selections, filters, PNG / JPG in and out, `.kpaint`),
+    **Kugel Motion** (frame-by-frame animation with onion skin, a background layer, tweens, playback, GIF / WebM / sprite sheet export, `.kmotion`) and
+    **Kugel Vector** (shapes, pen and freehand paths, stars, text, resize and rotate handles, align and arrange, SVG import, SVG / PNG export, `.kvector`).
+  - **💼 Kugel Work**: **Kugel Mail** (the separate app below), **Kugel Prism** (slides: themes, layouts, bullets, shapes, pictures, speaker notes, fullscreen presenting,
+    **.pptx import / export**), **Kugel Notes** (folders, Markdown, checklists, pins, search, .md / .txt), **Kugel Lattice** (sheets: 60 formulas, several sheets,
+    formatting, sorting, charts, **CSV and .xlsx import / export**) and **Kugel Arithmetricks**, a real calculator (Standard, Scientific, Programmer, dates, unit converters).
+  - **Arithmetricks Premium** is a game in the Designer list: the satirical pay-to-win calculator where you buy the digits (fake money only).
+
+  ![Sidebar](docs/kompass180-sidebar.png)
+  ![Kugel Paint](docs/kugel-paint.png)
+  ![Kugel Prism](docs/kugel-prism.png)
+  ![Kugel Lattice](docs/kugel-lattice.png)
 - **Kugel apps** (in the Kugel Store, need Kompass 1.7.0+). All three are plain KampfScript, made to run on a weak PC (integrated graphics, 4 GB RAM):
   - **🧊 Kugel 3D Modeler** (`kompass://store/kugel-modeler`): Blender-style modeling. Orbit / pan / zoom viewport with grid, cube / sphere / cylinder / cone / plane / torus,
     object and edit mode (select vertices / faces, box select), **extrude**, move / rotate / scale gizmo and **G / R / S** keys, subdivide, merge, smooth, join, undo / redo,
@@ -53,7 +69,7 @@ and provides native built-ins.
   ![Kugel Blocks 3D](docs/kugel-blocks-3d.png)
 - **Learn KampfScript** (`kompass://learn`, `F1`): 15 lessons with runnable examples, auto-checked exercises, saved progress and tutorial videos. Lessons ⑫–⑮ teach making 3D games. `kompass://learn/ai` is the full language reference to paste into an AI.
 - **⚡ Editor and console** (`Ctrl+Shift+K`): write and run your own `.ks` scripts, make your own `kompass://page/...` pages, or edit `browser.ks` and restart.
-  - The **builder** (`kompass://builder`) makes a custom Google-style home page.
+  - **Kugel Game Designer** (`kompass://builder`, in the sidebar) makes your own pages and games, with fullscreen.
 - **{ } KampfScript DevTools** (`F12`): an inspector, a live console (REPL), an event log, a debugger with breakpoints and stepping, a source/AST view, performance and errors. Chromium's page devtools are there too.
 - **🔑 Password manager**: an encrypted vault, a "save password?" bar, autofill, CSV and encrypted import/export. KampfScript code never sees a password.
 - **Looks**: four themes (Brass, Midnight, Neon, Paper), an accent colour and a double right-click quick menu.
@@ -68,6 +84,18 @@ Your data (settings, bookmarks, history, scripts, your `browser.ks`) lives in `%
 - **Prereleases are never offered.** GitHub's "latest" never points to a prerelease, so the VR builds below never reach Windows.
 - **The zip build** can't replace itself, so it shows "new version available → Download".
 - **Settings → Updates** has an Auto-update switch, a Check now button and your current version.
+
+### What's new in 1.8.0
+- **Sidebar** with Kugel Game Designer, Kugel Design and Kugel Work (see above). The page builder is now **Kugel Game Designer**, with fullscreen.
+- **Seven new Kugel Store apps**: Kugel Paint, Kugel Motion, Kugel Vector, Kugel Prism, Kugel Notes, Kugel Lattice and Kugel Arithmetricks,
+  plus the game Arithmetricks Premium. They need Kompass 1.8.0+ and are built to run on a weak PC.
+- **New built-ins** (documented in `kompass://learn/ai`): `on_keydown` / `key_prevent`, `text_insert` / `text_selection`, `canvas_filter`, `gif_encode`,
+  `canvas_record` (WebM), `zip_create` / `zip_read` and `xml_parse` (so Prism and Lattice can read and write .pptx / .xlsx), and `fullscreen()` for store apps.
+- The Save / Open boxes now accept the new file types (`.kpaint .kmotion .kvector .kprism .knotes .klattice .pptx .xlsx .gif .webm`).
+
+![Kugel Vector](docs/kugel-vector.png)
+![Kugel Motion](docs/kugel-motion.png)
+![Kugel Game Designer](docs/kugel-game-designer.png)
 
 ### What's new in 1.7.0
 - **Three Kugel apps in the Kugel Store**: Kugel 3D Modeler, Kugel Blocks and Kugel Blocks 3D (see above).
@@ -93,6 +121,8 @@ npm install
 npm start                 # run
 npm test                  # interpreter, browser.ks, lessons, 3D games, user-agent, Kugel apps tests
 node tools/build-blocks.js  # rebuild Kugel Blocks / Blocks 3D from kugel-apps/blocks/*.ks
+node tools/build-apps.js    # rebuild the 1.8.0 Design / Work apps from kugel-apps/{calc,work,design}
+tools/e2e-apps.sh           # Linux + xvfb: click / type through those apps in real Electron and save screenshots
 node tools/release.js     # build portable exe + zip + kompass-update.json + SHA512SUMS and publish (docs/RELEASING.md)
 ```
 

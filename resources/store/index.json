@@ -223,6 +223,102 @@
         "email",
         "download"
       ]
+    },
+    {
+      "id": "kugel-arithmetricks",
+      "icon": "🧮",
+      "title": "Kugel Arithmetricks",
+      "author": "KampfGuy",
+      "description": "A real calculator in the Windows 11 style: Standard, Scientific, Programmer (HEX/DEC/OCT/BIN), date calculation and 10 unit converters. History, memory, keyboard, light and dark theme. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "calculator"
+      ]
+    },
+    {
+      "id": "arithmetricks-premium",
+      "icon": "💸",
+      "title": "Arithmetricks Premium",
+      "author": "KampfGuy",
+      "description": "Satirical pay-to-win calculator game: buy the digits, the equals sign is extra, CalcBank debt tiers, a $100/min Premium subscription, the Employee Portal and Chapter 7. Fake money only, fully offline. Needs Kompass 1.8.0+.",
+      "tags": [
+        "game",
+        "satire",
+        "simulation"
+      ]
+    },
+    {
+      "id": "kugel-notes",
+      "icon": "🗒",
+      "title": "Kugel Notes",
+      "author": "KampfGuy",
+      "description": "Notes with folders, Markdown formatting, checklists, pins and search. Import and export .md / .txt. Everything stays on this PC. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "notes"
+      ]
+    },
+    {
+      "id": "kugel-lattice",
+      "icon": "▦",
+      "title": "Kugel Lattice",
+      "author": "KampfGuy",
+      "description": "Spreadsheets: formulas (SUM, AVERAGE, IF, VLOOKUP and more), several sheets, formatting, charts, CSV and .xlsx import / export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "spreadsheet"
+      ]
+    },
+    {
+      "id": "kugel-paint",
+      "icon": "🖌",
+      "title": "Kugel Paint",
+      "author": "KampfGuy",
+      "description": "Painting like a small Photoshop / Fresco: layers, brush, pencil, eraser, fill, shapes, text, colour picker, selections, filters, flip / rotate / resize, undo, PNG / JPG import and PNG export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "art"
+      ]
+    },
+    {
+      "id": "kugel-vector",
+      "icon": "✒",
+      "title": "Kugel Vector",
+      "author": "KampfGuy",
+      "description": "Vector graphics like a small Illustrator: rectangles, ellipses, lines, stars, pen and freehand paths, text, fill / stroke, resize / rotate handles, arrange and align, SVG import, SVG and PNG export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "vector"
+      ]
+    },
+    {
+      "id": "kugel-motion",
+      "icon": "🎞",
+      "title": "Kugel Motion",
+      "author": "KampfGuy",
+      "description": "Animation like a small Adobe Animate: frame-by-frame drawing on a timeline, a background layer, onion skin, in-between (tween) frames, playback, GIF / WebM / sprite sheet export for your games. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "animation"
+      ]
+    },
+    {
+      "id": "kugel-prism",
+      "icon": "🔷",
+      "title": "Kugel Prism",
+      "author": "KampfGuy",
+      "description": "Slides and presentations: themes, layouts, text with bullets, shapes and pictures, speaker notes, fullscreen presenting, .pptx import / export and PNG export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "slides"
+      ]
     }
   ]
 }

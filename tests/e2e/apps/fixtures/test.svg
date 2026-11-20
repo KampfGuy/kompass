@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect x="10" y="10" width="120" height="80" rx="10" fill="red" stroke="#000" stroke-width="3"/>
+  <circle cx="250" cy="70" r="50" style="fill:#00a2e8;stroke:none"/>
+  <g fill="green"><polygon points="50,280 100,180 150,280"/></g>
+  <path d="M200 200 C 250 150, 300 250, 350 200 L 350 280 Z" fill="#a349a4"/>
+  <line x1="10" y1="150" x2="390" y2="150" stroke="orange" stroke-width="4"/>
+  <text x="180" y="130" font-size="24" fill="#333">Hello SVG</text>
+</svg>
