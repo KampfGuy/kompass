@@ -271,6 +271,18 @@
         "work",
         "spreadsheet"
       ]
+    },
+    {
+      "id": "kugel-paint",
+      "icon": "🖌",
+      "title": "Kugel Paint",
+      "author": "KampfGuy",
+      "description": "Painting like a small Photoshop / Fresco: layers with opacity and blend modes, brushes, eraser, fill, shapes, selection (copy / move / crop), filters, undo, PNG import / export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "art"
+      ]
     }
   ]
 }

@@ -828,3 +828,49 @@ body.ks-fullscreen .stage-fs > .bld-stage, body.ks-fullscreen .stage-fs > .app-s
 .kl-sref { font-weight:600; color:#1d2129; }
 .kl-fngrid { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; max-width:520px; }
 @container (max-width: 760px) { .kl-charts { width:240px; flex-basis:240px; } }
+/* ---------------- v1.8 Kugel Design kit (Kugel Paint, Motion, Vector): dark look on top of .kapp ---------------- */
+.kapp .kd-holder { position:absolute; width:0; height:0; overflow:hidden; visibility:hidden; pointer-events:none; }
+.kd-space { flex:1; }
+.kapp-bar.kd-opts { padding-right:12px; min-height:36px; background:#23262e; flex-shrink:0; }
+.kapp > .kapp-bar { flex-shrink:0; align-items:center; }
+.kapp > .kapp-main { align-items:stretch; }
+.kd-optname { font-weight:600; color:#ffb366; min-width:64px; }
+.kd-ico { min-width:30px; text-align:center; }
+.kapp .ks-textbox.kapp-field { background:#15171c; color:#e6e8ee; border:1px solid #3e4452; border-radius:5px; padding:3px 7px; font:inherit; font-size:12.5px; }
+.kapp .ks-textbox.kd-name { width:120px; }
+.kapp .ks-slider.kd-slider { width:110px; }
+.kd-val { min-width:40px; } .kd-zoom { min-width:44px; text-align:center; }
+.kd-tools { width:52px; flex:0 0 52px; align-items:center; padding:6px 4px; }
+.kd-tool { width:40px; height:34px; font-size:16px; padding:0; }
+.kd-right { width:236px; flex:0 0 236px; }
+.kd-viewwrap { background:#16181d; overflow:hidden; }
+.kd-viewwrap canvas { cursor:crosshair; }
+.kd-swatch { width:20px; height:20px; border-radius:4px; border:1px solid #545b6b; padding:0; cursor:pointer; flex-shrink:0; background:#000; }
+.kd-swatch.big { width:34px; height:34px; border:2px solid #e6e8ee; }
+.kd-tools .kd-swatch.big { margin-top:4px; } .kd-tools .kd-swatch { margin-top:2px; }
+.kd-color { gap:3px; display:flex; flex-direction:column; }
+.kd-crow { display:flex; align-items:center; gap:6px; }
+.kapp .ks-textbox.kd-hex { width:90px; font-family:"Kompass Mono", Consolas, monospace; }
+.kd-pal { display:grid; grid-template-columns:repeat(11, 1fr); gap:2px; margin:3px 0; }
+.kd-pal .kd-swatch { width:100%; height:16px; border-radius:3px; }
+.kd-recent { display:flex; gap:2px; flex-wrap:wrap; min-height:18px; }
+.kd-recent .kd-swatch { width:16px; height:16px; }
+.kapp .ks-slider.kd-hue { background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00); border-radius:4px; height:8px; }
+.kd-laytools { display:flex; gap:3px; flex-wrap:wrap; }
+.kd-laytools .kapp-btn { padding:3px 7px; }
+.kd-laylist { display:flex; flex-direction:column; gap:2px; overflow-y:auto; max-height:260px; }
+.kd-layer { display:flex; align-items:center; gap:5px; padding:3px 4px; border-radius:6px; cursor:pointer; border:1px solid transparent; }
+.kd-layer:hover { background:#2d313b; } .kd-layer.on { background:#ff8c1a26; border-color:#ff8c1a88; }
+.kd-thumb { border:1px solid #3e4452; border-radius:3px; flex-shrink:0; }
+.kd-layname { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; }
+.kd-eye { background:transparent; border:0; color:#cfd3dc; cursor:pointer; padding:2px 4px; font-size:12px; border-radius:4px; }
+.kd-eye:hover { background:#3a3f4c; }
+.kd-oprow { display:flex; align-items:center; gap:6px; }
+.kd-toast { position:absolute; left:50%; bottom:36px; transform:translateX(-50%); background:#0f1115; color:#fff; border:1px solid #ff8c1a; padding:7px 14px; border-radius:8px; z-index:60; font-size:12.5px; }
+.kd-shade { position:absolute; inset:0; background:rgba(5,6,8,.55); display:flex; align-items:center; justify-content:center; z-index:50; }
+.kd-dialog { background:#23262e; border:1px solid #3e4452; border-radius:10px; padding:14px 16px; min-width:320px; max-width:90%; max-height:86%; overflow-y:auto; display:flex; flex-direction:column; gap:8px; box-shadow:0 18px 50px rgba(0,0,0,.5); }
+.kd-dhead { display:flex; align-items:center; gap:8px; } .kd-dtitle { font-weight:700; font-size:15px; color:#fff; }
+.kd-x { background:transparent; border:0; color:#9aa1b2; cursor:pointer; font-size:14px; } .kd-x:hover { color:#fff; }
+.kd-frow { display:flex; align-items:center; gap:8px; } .kd-flabel { width:90px; color:#aab0bf; font-size:12.5px; }
+.kapp .ks-textbox.kd-fin { flex:1; }
+.kd-drow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }

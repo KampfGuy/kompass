@@ -123,8 +123,6 @@ module.exports = {
     text_selection: ['text_selection(box) -> {start, end, text}', 'Where the selection of a textbox / codebox is.'],
     on_keydown: ['on_keydown(el, fn(k), prevent?)', 'Keys pressed inside one element: k = {key, name, combo, shift, ctrl, alt} (name like "up", "enter", "a"; combo like "ctrl+z"). Keys named in the prevent list skip their normal action.'],
     key_prevent: ['key_prevent(el, list)', 'Change which keys on_keydown() stops from doing their normal action.'],
-    on_keydown: ['on_keydown(el, fn(k), prevent?)', 'Keys pressed inside one element: k = {key, name, combo, shift, ctrl, alt} (name like "up", "enter", "a"; combo like "ctrl+z"). Keys named in the prevent list skip their normal action.'],
-    key_prevent: ['key_prevent(el, list)', 'Change which keys on_keydown() stops from doing their normal action.'],
     on_click: ['on_click(el, fn)', 'Run fn() when the element is clicked.'],
     on_middle_click: ['on_middle_click(el, fn)', 'Run fn() on middle click.'],
     on_key: ['on_key("ctrl+shift+x", fn)', 'Global keyboard shortcut (browser.ks only).'],
