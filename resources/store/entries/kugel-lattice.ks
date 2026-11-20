@@ -1103,9 +1103,15 @@ on_mouse(cv, fn(e) {
     return
   }
   if e.type == "up" {
+    # on_mouse also reports mouseup anywhere in the window: only finish our own drags, and never redraw the
+    # tabs / charts here, or a real click on a tab button would lose its element between mouseup and click
+    if drag == "" { return }
     if drag == "resize" { save_book() }
     drag = ""
-    draw_all()
+    draw_grid()
+    draw_fx()
+    draw_status()
+    place_editor()
   }
 })
 
