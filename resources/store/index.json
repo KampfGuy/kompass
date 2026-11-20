@@ -283,6 +283,18 @@
         "design",
         "art"
       ]
+    },
+    {
+      "id": "kugel-vector",
+      "icon": "✒",
+      "title": "Kugel Vector",
+      "author": "KampfGuy",
+      "description": "Vector graphics like a small Illustrator: rectangles, ellipses, lines, stars, pen paths, text, fill / stroke, layers order, align and distribute, SVG and PNG export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "design",
+        "vector"
+      ]
     }
   ]
 }

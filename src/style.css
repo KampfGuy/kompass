@@ -874,3 +874,10 @@ body.ks-fullscreen .stage-fs > .bld-stage, body.ks-fullscreen .stage-fs > .app-s
 .kd-frow { display:flex; align-items:center; gap:8px; } .kd-flabel { width:90px; color:#aab0bf; font-size:12.5px; }
 .kapp .ks-textbox.kd-fin { flex:1; }
 .kd-drow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.kd-props { display:flex; flex-direction:column; gap:4px; }
+.kd-xywh { display:flex; gap:6px; } .kd-xywh .kd-frow { flex:1; min-width:0; } .kd-xywh .kd-flabel { width:auto; min-width:14px; }
+.kapp .ks-textbox.kd-hex { min-width:0; }
+.kd-props .kd-frow .kd-flabel { width:78px; flex-shrink:0; }
+.kd-right .kd-laylist { max-height:220px; flex-shrink:0; }
+.kapp .kd-xywh .ks-textbox.kd-fin { width:50px; min-width:0; flex:1 1 50px; }
+.kapp .kd-frow .ks-textbox.kd-hex { flex:1; width:auto; }
