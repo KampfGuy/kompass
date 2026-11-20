@@ -150,6 +150,34 @@
         if (!sel && a) { const p = s0 + b.length; e.setSelectionRange(p, p); } else if (sel) e.setSelectionRange(s0 + b.length, s0 + b.length + sel.length);
         e.focus(); e.dispatchEvent(new Event('input', { bubbles: true })); return null;
       }, 2, 3),
+      // v1.8: keys pressed inside one element (spreadsheet cells, editors): fn({key, name, shift, ctrl, alt}); keys whose name
+      // ("up", "enter", "tab", "ctrl+z", ...) is in the prevent list do not do their normal thing (change it with key_prevent)
+      on_keydown: B(([x, f, list]) => {
+        const e = el(x, 'on_keydown()'); if (!isFn(f)) throw new KError('on_keydown() needs a function like fn(k) { ... }');
+        e.__kp = new Set((Array.isArray(list) ? list : []).map((v) => S(v).toLowerCase()));
+        e.addEventListener('keydown', (ev) => {
+          const name = normKey(ev.key); const combo = (ev.ctrlKey || ev.metaKey ? 'ctrl+' : '') + (ev.altKey ? 'alt+' : '') + (ev.shiftKey && name.length > 1 ? 'shift+' : '') + name;
+          if (e.__kp.has(name) || e.__kp.has(combo)) ev.preventDefault();
+          ev.stopPropagation();
+          cb(f, 'keydown: ' + combo)({ key: ev.key, name, combo, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, alt: ev.altKey });
+        });
+        return null;
+      }, 2, 3),
+      key_prevent: B(([x, list]) => { const e = el(x, 'key_prevent()'); e.__kp = new Set((Array.isArray(list) ? list : []).map((v) => S(v).toLowerCase())); return null; }, 2, 2),
+      // v1.8: keys pressed inside one element (spreadsheet cells, editors): fn({key, name, shift, ctrl, alt}); keys whose name
+      // ("up", "enter", "tab", "ctrl+z", ...) is in the prevent list do not do their normal thing (change it with key_prevent)
+      on_keydown: B(([x, f, list]) => {
+        const e = el(x, 'on_keydown()'); if (!isFn(f)) throw new KError('on_keydown() needs a function like fn(k) { ... }');
+        e.__kp = new Set((Array.isArray(list) ? list : []).map((v) => S(v).toLowerCase()));
+        e.addEventListener('keydown', (ev) => {
+          const name = normKey(ev.key); const combo = (ev.ctrlKey || ev.metaKey ? 'ctrl+' : '') + (ev.altKey ? 'alt+' : '') + (ev.shiftKey && name.length > 1 ? 'shift+' : '') + name;
+          if (e.__kp.has(name) || e.__kp.has(combo)) ev.preventDefault();
+          ev.stopPropagation();
+          cb(f, 'keydown: ' + combo)({ key: ev.key, name, combo, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, alt: ev.altKey });
+        });
+        return null;
+      }, 2, 3),
+      key_prevent: B(([x, list]) => { const e = el(x, 'key_prevent()'); e.__kp = new Set((Array.isArray(list) ? list : []).map((v) => S(v).toLowerCase())); return null; }, 2, 2),
       text_selection: B(([x]) => { const e = el(x, 'text_selection()'); return toK({ start: e.selectionStart || 0, end: e.selectionEnd || 0, text: e.value ? e.value.slice(e.selectionStart || 0, e.selectionEnd || 0) : '' }); }, 1, 1),
       focus: B(([x]) => { const e = el(x, 'focus()'); setTimeout(() => { e.focus(); if (e.select) e.select(); }, 20); return null; }, 1, 1),
       on_click: B(([x, f]) => { const e0 = el(x, 'on_click()'); e0.addEventListener('click', (e) => { e.stopPropagation(); cb(f, 'click: ' + x.kind + ' ' + (e0.textContent || '').trim().slice(0, 18))(); }); return null; }, 2, 2),
@@ -213,7 +241,7 @@
       draw_text: B(([c, x, y, t, color, size, align, font]) => {
         const g = cv(c, 'draw_text()').g; const f = font ? S(font) : 'Segoe UI, system-ui, sans-serif';
         if (!/^[a-zA-Z0-9 ,"'-]{1,80}$/.test(f)) throw new KError('draw_text(): bad font name');
-        g.font = (size && typeof size === 'number' ? size : 14) + 'px ' + f; const a = align ? S(align) : 'left';
+        const st = (f.match(/^(?:(?:bold|italic|[1-9]00)\s+)+/) || [''])[0]; g.font = st + (size && typeof size === 'number' ? size : 14) + 'px ' + (f.slice(st.length) || 'Segoe UI, system-ui, sans-serif'); const a = align ? S(align) : 'left';
         if (!['left', 'center', 'right'].includes(a)) throw new KError('draw_text(): align is "left", "center" or "right"');
         g.textAlign = a; g.textBaseline = 'middle'; g.fillStyle = col(color === undefined || color === null ? '#000' : color, 'draw_text()'); g.fillText(S(t), N(x, 'draw_text()'), N(y, 'draw_text()'));
         return null;

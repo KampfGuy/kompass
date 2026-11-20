@@ -208,7 +208,7 @@
         if (px < 0 || py < 0 || px >= cvs.width || py >= cvs.height) return '#00000000';
         const d = cvs.getContext('2d').getImageData(px, py, 1, 1).data; return '#' + [d[0], d[1], d[2], d[3]].map((v) => v.toString(16).padStart(2, '0')).join('');
       }, 3, 3),
-      text_width: B(([t, size, font]) => { const g = (root.__ksMeasure = root.__ksMeasure || document.createElement('canvas').getContext('2d')); const f = font ? S(font) : 'Segoe UI, system-ui, sans-serif'; if (!/^[a-zA-Z0-9 ,"'-]{1,80}$/.test(f)) throw new KError('text_width(): bad font name'); g.font = (typeof size === 'number' ? size : 14) + 'px ' + f; return +g.measureText(S(t)).width.toFixed(2); }, 1, 3),
+      text_width: B(([t, size, font]) => { const g = (root.__ksMeasure = root.__ksMeasure || document.createElement('canvas').getContext('2d')); const f = font ? S(font) : 'Segoe UI, system-ui, sans-serif'; if (!/^[a-zA-Z0-9 ,"'-]{1,80}$/.test(f)) throw new KError('text_width(): bad font name'); const st = (f.match(/^(?:(?:bold|italic|[1-9]00)\s+)+/) || [''])[0]; g.font = st + (typeof size === 'number' ? size : 14) + 'px ' + (f.slice(st.length) || 'Segoe UI, system-ui, sans-serif'); return +g.measureText(S(t)).width.toFixed(2); }, 1, 3),
 
       // ---------- sound (synthesised, nothing downloaded)
       beep: B(([f, s, wave, vol]) => { const a = audio(); if (!a) return false; const w = wave ? S(wave) : 'square'; if (!['sine', 'square', 'sawtooth', 'triangle'].includes(w)) throw new KError('beep(): wave is sine, square, sawtooth or triangle'); tone(a, a.currentTime, Math.max(20, Math.min(20000, N(f, 'beep()'))), Math.max(0.01, Math.min(10, N(s, 'beep()', 0.2))), w, Math.max(0, Math.min(1, N(vol, 'beep()', 0.3)))); return true; }, 1, 4),

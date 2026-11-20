@@ -259,6 +259,18 @@
         "work",
         "notes"
       ]
+    },
+    {
+      "id": "kugel-lattice",
+      "icon": "▦",
+      "title": "Kugel Lattice",
+      "author": "KampfGuy",
+      "description": "Spreadsheets: formulas (SUM, AVERAGE, IF, VLOOKUP and more), several sheets, formatting, charts, CSV and .xlsx import / export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "spreadsheet"
+      ]
     }
   ]
 }

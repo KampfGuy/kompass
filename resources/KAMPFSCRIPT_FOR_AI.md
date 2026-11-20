@@ -97,7 +97,7 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 - Errors try to help: typos suggest the closest name (`pirnt` → did you mean print?), `s.length` says use len(s), `x++` says write x += 1, `&&` says use and.
 - `error("msg")` raises your own error. Common errors: Unknown name, index out of range, Can't add list and number, X expects N arguments.
 
-## 7. Built-ins (373, generated from the source)
+## 7. Built-ins (377, generated from the source)
 
 ### 7.1 Core (73) — available everywhere
 
@@ -177,7 +177,7 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 | `rgb(r, g, b, a?) -> string` | Colour text "rgb(...)" / "rgba(...)" from 0..255 numbers (a: 0..1). |
 | `vangle(v)` | Direction of a vector, atan2(v.y, v.x). |
 
-### 7.2 UI & styling (83) — browser.ks, lesson stages and builder pages
+### 7.2 UI & styling (87) — browser.ks, lesson stages and builder pages
 
 `style` arguments are CSS class names (letters, digits, `-`, `_`). Colours are hex strings like `"#4285f4"`. In sandboxes/pages these are removed: on_key, set_window_title, set_theme, set_accent, confirm, every.
 
@@ -212,6 +212,10 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 | `show(el, on?)` | Show (default) or hide an element. |
 | `enable(el, on)` | Enable/disable a control. |
 | `text_insert(box, before, after?)` | Wrap the selected text of a textbox / codebox in before + after (or insert at the caret) — for editor toolbars. |
+| `on_keydown(el, fn(k), prevent?)` | Keys pressed inside one element: k = {key, name, combo, shift, ctrl, alt} (name like "up", "enter", "a"; combo like "ctrl+z"). Keys named in the prevent list skip their normal action. |
+| `key_prevent(el, list)` | Change which keys on_keydown() stops from doing their normal action. |
+| `on_keydown(el, fn(k), prevent?)` | Keys pressed inside one element: k = {key, name, combo, shift, ctrl, alt} (name like "up", "enter", "a"; combo like "ctrl+z"). Keys named in the prevent list skip their normal action. |
+| `key_prevent(el, list)` | Change which keys on_keydown() stops from doing their normal action. |
 | `text_selection(box) -> {start, end, text}` | Where the selection of a textbox / codebox is. |
 | `focus(el)` | Focus (and select) an element. |
 | `on_click(el, fn)` | Run fn() when the element is clicked. |
@@ -243,7 +247,7 @@ Division or modulo by zero is an error. Precedence (low→high): or, and, not, c
 | `draw_lines(c, points, color, width?)` | Connected line through [[x, y], ...] or [vec(x, y), ...]. |
 | `draw_poly(c, points, color, line_width?)` | Filled polygon (or outline) through the points. |
 | `draw_points(c, points, color, size?)` | Many small squares at once (fast: star fields, particles). |
-| `draw_text(c, x, y, text, color?, size?, align?, font?)` | Text, vertically centred on y; align "left" \| "center" \| "right". |
+| `draw_text(c, x, y, text, color?, size?, align?, font?)` | Text, vertically centred on y; align "left" \| "center" \| "right"; font may start with "bold " / "italic " (e.g. "bold Segoe UI"). |
 | `draw_glow(c, x, y, r, inner_color, outer_color?)` | Radial gradient disc (glows, suns, atmospheres). |
 | `draw_gradient(c, x, y, w, h, top_color, bottom_color)` | Rectangle with a top-to-bottom gradient. |
 | `draw_alpha(c, a)` | Transparency for the next drawings, 0..1. |
