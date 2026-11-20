@@ -307,6 +307,18 @@
         "design",
         "animation"
       ]
+    },
+    {
+      "id": "kugel-prism",
+      "icon": "🔷",
+      "title": "Kugel Prism",
+      "author": "KampfGuy",
+      "description": "Slides and presentations: themes, text, shapes and images, fullscreen presenting, .pptx import / export and PNG export. Needs Kompass 1.8.0+.",
+      "tags": [
+        "app",
+        "work",
+        "slides"
+      ]
     }
   ]
 }
